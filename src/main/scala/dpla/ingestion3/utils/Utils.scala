@@ -121,7 +121,9 @@ object Utils {
     val recordsPerSecond: Long = recordCount/(runtime/1000)
     val formatter = java.text.NumberFormat.getIntegerInstance
 
-    s"\n\nRecord count: ${formatter.format(recordCount)}\n" +
+    val line = List.fill(80)("-").mkString("") + "\n"
+
+    s"SUMMARY\n${line}Record count: ${formatter.format(recordCount)}\n" +
     s"Runtime: ${formatRuntime(runtime)}\n" +
     s"Throughput: ${formatter.format(recordsPerSecond)} records per second"
   }

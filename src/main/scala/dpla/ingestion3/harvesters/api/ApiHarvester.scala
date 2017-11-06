@@ -20,7 +20,7 @@ abstract class ApiHarvester(shortName: String,
                             outputDir: String,
                             harvestLogger: Logger)
   extends Harvester(shortName, conf, outputDir, harvestLogger)
-    with UrlBuilder {
+    with UrlBuilder with Serializable {
 
   // Abstract method queryParams should set base query parameters for API call.
   protected val queryParams: Map[String, String]

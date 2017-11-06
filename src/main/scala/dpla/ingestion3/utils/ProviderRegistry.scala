@@ -1,7 +1,7 @@
 package dpla.ingestion3.utils
 
 import dpla.ingestion3.harvesters.Harvester
-import dpla.ingestion3.harvesters.api.{CdlHarvester, MdlHarvester}
+import dpla.ingestion3.harvesters.api.{CdlHarvester, MdlHarvester, NyplHarvester}
 import dpla.ingestion3.mappers.providers._
 
 import scala.util.Try
@@ -53,6 +53,9 @@ object ProviderRegistry {
     ),
     "nara" -> Register(
       Some(classOf[NaraExtractor])
+    ),
+    "nypl" -> Register(
+      harvesterClass = Some(classOf[NyplHarvester])
     ),
     "pa" -> Register(
       Some(classOf[PaExtractor])

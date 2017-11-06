@@ -77,7 +77,7 @@ abstract class Harvester(shortName: String,
 
       case Failure(f) =>
         // Log the failure.
-        harvestLogger.fatal(s"Unable to harvest records. ${f.getMessage}")
+        harvestLogger.fatal(s"Unable to harvest records. ${f.getMessage}\n${f.getStackTrace.mkString("\n")}")
     }
 
     // Shut down spark session.
