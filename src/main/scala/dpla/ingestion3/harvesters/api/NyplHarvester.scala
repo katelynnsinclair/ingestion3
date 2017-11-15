@@ -186,7 +186,7 @@ class NyplHarvester(shortName: String,
       case Success(rsp) => XML.loadString(rsp)
       case Failure(f) => throw f
     }
-    extractStrings(response \\ "uuid").takeRight(4000)
+    extractStrings(response \\ "uuid")
   }
 
   /**
