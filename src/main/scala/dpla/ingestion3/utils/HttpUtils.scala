@@ -60,6 +60,9 @@ object HttpUtils {
     // try is used here to ensure closure of response
     try {
       if (response.isSuccessful) {
+
+        println(s"Round trip ${request.url().toString} -- ${response.receivedResponseAtMillis()-response.sentRequestAtMillis()}ms")
+
         response.body().string()
       } else {
         val msg = s"Unsuccessful request: ${request.url().toString}\n" +

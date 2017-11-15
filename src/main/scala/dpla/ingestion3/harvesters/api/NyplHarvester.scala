@@ -53,7 +53,9 @@ class NyplHarvester(shortName: String,
 
     // These calls will generate a list of item calls to be made.
     val pageCalls = computeAllPageCalls()
+
     harvestLogger.info(s"Total number of page calls ${pageCalls.size}")
+    println(s"Total number of page calls ${pageCalls.size}")
 
     // A list of 2M items
     val itemCalls = executePageCalls(pageCalls)
@@ -184,7 +186,7 @@ class NyplHarvester(shortName: String,
       case Success(rsp) => XML.loadString(rsp)
       case Failure(f) => throw f
     }
-    extractStrings(response \\ "uuid")
+    extractStrings(response \\ "uuid").takeRight(4000)
   }
 
   /**
@@ -209,7 +211,6 @@ class NyplHarvester(shortName: String,
     val setIds = getSetIds
 
     val setCounts = setIds.map(set => {
-      Thread.sleep(2000)
       getSinglePage(set, "1") match {
         case src: ApiSource with ApiResponse =>
           val xml = XML.loadString(src.text.get)
