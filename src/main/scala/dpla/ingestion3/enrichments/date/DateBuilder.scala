@@ -22,6 +22,7 @@ object DateBuilderPatterns {
     // Single date
     DateTimeFormat.forPattern("yyyy").getParser,
     DateTimeFormat.forPattern("yyyy MM").getParser,
+    DateTimeFormat.forPattern("MM yyyy").getParser,
     DateTimeFormat.forPattern("yyyy MM dd").getParser,
     DateTimeFormat.forPattern("yyyy MMM").getParser,
     DateTimeFormat.forPattern("yyyy MMM dd").getParser,
@@ -30,11 +31,11 @@ object DateBuilderPatterns {
 
     // TODO Patterns to be implemented
     // Date ranges
-    //  yyyy-yyyy | 1935-1956
-    //  yyyy-MM-dd/yyyy-MM-dd | 1850-01-01/1950-12-31
+    // yyyy-yyyy | 1935-1956
+    // yyyy-MM-dd/yyyy-MM-dd | 1850-01-01/1950-12-31
 
     // Periods
-    //  century -> | 19th century
+    // century -> | 19th century
 
     // Indeterminate
     //  "n.d." -> "indeterminate (n.d.)", // n.d.

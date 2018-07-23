@@ -151,4 +151,14 @@ class DateBuilderTest extends FlatSpec with BeforeAndAfter with Matchers with Ch
     }
     generatedDate === expectedDate
   }
+
+  it should "create a valid label for mm-yyyy" in {
+    val date = "11 1984"
+    val expectedDate = Option("1984-11-01")
+    val generatedDate = dateBulder.buildDateObject(date) match {
+      case Some(d) => Some(d.toString)
+      case None => None
+    }
+    generatedDate === expectedDate
+  }
 }
