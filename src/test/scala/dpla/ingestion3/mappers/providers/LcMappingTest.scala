@@ -10,7 +10,6 @@ import org.scalatest.{BeforeAndAfter, FlatSpec}
 
 class LcMappingTest extends FlatSpec with BeforeAndAfter {
   implicit val msgCollector: MessageCollector[IngestMessage] = new MessageCollector[IngestMessage]
-  val shortName = "loc"
   val jsonString: String = new FlatFileIO().readFileAsString("/lc.json")
   val json: Document[JValue] = Document(parse(jsonString))
   val extractor = new LcMapping
@@ -36,7 +35,9 @@ class LcMappingTest extends FlatSpec with BeforeAndAfter {
   }
 
   it should "extract the correct url for preview" in {
-    val expected = Seq(uriOnlyWebResource(URI("http:images.com")))
+    val expected = Seq("//cdn.loc.gov/service/gmd/gmd381/g3811/g3811f/ar124400.gif")
+      .map(stringOnlyWebResource)
+
     assert(extractor.preview(json) === expected)
   }
   // TODO test extraction of other-titles and alternate_title
@@ -47,7 +48,7 @@ class LcMappingTest extends FlatSpec with BeforeAndAfter {
     assert(extractor.alternateTitle(json) == Seq("alt title"))
   }
 
-  // TODO test correct extraction from `dates` and if both present s
+  // TODO test correct extraction from `dates` and if both present
   it should "extract the correct date" in {
     val expected = Seq("1769").map(stringOnlyTimeSpan)
     assert(extractor.date(json) == expected)
@@ -66,7 +67,7 @@ class LcMappingTest extends FlatSpec with BeforeAndAfter {
 
   // TODO test extraction from [item \ format \ type]
   it should "extract the correct format" in {
-    val expected = Seq("map")
+    val expected = Seq("map", "map")
     assert(extractor.format(json) == expected)
   }
 
@@ -93,7 +94,17 @@ class LcMappingTest extends FlatSpec with BeforeAndAfter {
 
   // TODO Add test for extracting format keys
   it should "extract the correct type" in {
-    val expected = Seq("map", "map")
+    val expected = Seq("image")
     assert(extractor.`type`(json) == expected)
+  }
+
+  it should "exclude '“Library of Congress Online Catalog”' from collection values" in {
+    val expected = Seq("american revolution and its era: maps and charts of north america and the west indies, 1750-1789",
+      "military battles and campaigns",
+      "geography and map division",
+      "american memory",
+      "catalog").map(nameOnlyCollection)
+
+    assert(extractor.collection(json) == expected)
   }
  }

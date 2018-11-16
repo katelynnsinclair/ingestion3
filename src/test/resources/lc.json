@@ -10,7 +10,8 @@
       "catalog"
     ],
     "original_format": [
-      "map"
+      "map",
+      "image"
     ],
     "genre": [],
     "subject_headings": [
@@ -149,6 +150,11 @@
         "count": 919981,
         "url": "https://www.loc.gov/search/?at=item&fa=partof:catalog&fo=json",
         "title": "catalog"
+      },
+      {
+        "count": 1,
+        "url": "https://www.loc.gov/search/?at=item&fa=partof:Library of Congress Online Catalog&fo=json",
+        "title": "Library of Congress Online Catalog"
       }
     ],
     "timestamp": "2018-03-20T21:07:47.679Z",

@@ -1,7 +1,7 @@
 package dpla.ingestion3.mappers.providers
 
 import dpla.ingestion3.enrichments.normalizations.StringNormalizationUtils._
-import dpla.ingestion3.enrichments.normalizations.filters.{DigitalSurrogateBlockList, FormatTypeValuesBlockList}
+import dpla.ingestion3.enrichments.normalizations.filters.{DigitalSurrogateBlockList, FormatTypeValuesBlockList, TypeAllowList}
 import dpla.ingestion3.mappers.utils.{Document, IdMinter, JsonExtractor, Mapping}
 import dpla.ingestion3.model.DplaMapData._
 import dpla.ingestion3.model.{EdmAgent, _}
@@ -16,6 +16,8 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
     DigitalSurrogateBlockList.termList ++
       FormatTypeValuesBlockList.termList
 
+  val typeAllowList: Set[String] = TypeAllowList.termList
+
   // ID minting functions
   override def useProviderName: Boolean = false
 
@@ -24,7 +26,7 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
     "loc"
 
   override def getProviderId(implicit data: Document[JValue]): String =
-    extractString(unwrap(data) \ "item" \ "id") // TODO confirm basis field for DPLA ID
+    extractString(unwrap(data) \ "item" \ "id")
       .getOrElse(throw new RuntimeException(s"No ID for record: ${compact(data)}"))
 
   // OreAggregation fields
@@ -48,8 +50,9 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
     Utils.formatJson(data)
 
   override def preview(data: Document[JValue]): ZeroToMany[EdmWebResource] =
-    extractStrings(unwrap(data) \ "item" \ "resource" \ "image")
+    extractStrings(unwrap(data) \\ "image_url")
       .map(stringOnlyWebResource)
+      .take(1)
 
   override def provider(data: Document[JValue]): ExactlyOne[EdmAgent] = EdmAgent(
     name = Some("Library of Congress"),
@@ -77,6 +80,7 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
   override def collection(data: Document[JValue]): ZeroToMany[DcmiTypeCollection] =
     // [partof['title'] for partof in item['partof']
     extractStrings(unwrap(data) \\ "partof" \ "title")
+      .filterNot(_.equalsIgnoreCase("Library of Congress Online Catalog"))
       .map(nameOnlyCollection)
 
   override def contributor(data: Document[JValue]): ZeroToMany[EdmAgent] = {
@@ -104,16 +108,14 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
     // item['medium']
     extractStrings(unwrap(data) \ "item" \ "medium")
 
-  override def format(data: Document[JValue]): ZeroToMany[String] = {
-    // (item['type'] AND item['genre']) OR type in item['format']],
-    val format =
-      extractStrings(unwrap(data) \ "item" \ "type") ++
+  override def format(data: Document[JValue]): ZeroToMany[String] =
+    (extractStrings(unwrap(data) \ "item" \ "type") ++
       extractStrings(unwrap(data) \ "item" \ "genre") ++
-      extractStrings(unwrap(data) \ "item" \ "format" \ "type")
-
-    format.map(_.applyBlockFilter(formatBlockList))
+      extractStrings(unwrap(data) \ "item" \ "original_format") ++
+      extractStrings(unwrap(data) \ "item" \ "format" \ "type"))
+      .map(_.applyBlockFilter(formatBlockList))
       .filter(_.nonEmpty)
-  }
+
 
   override def identifier(data: Document[JValue]): ZeroToMany[String] =
     // item['id']
@@ -126,7 +128,6 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
 
   override def place(data: Document[JValue]): ZeroToMany[DplaPlace] =
     // item['location']].keys
-    // loc.gov/item: item['coordinates']   << lat // TODO How should this integrate?
     extractKeys(unwrap(data) \ "item" \ "location")
       .map(_.capitalizeFirstChar) // capitalize first char since we are using json keys
       .map(nameOnlyPlace)
@@ -143,11 +144,12 @@ class LcMapping() extends Mapping[JValue] with IdMinter[JValue] with JsonExtract
     // item['title']
     extractStrings(unwrap(data) \ "item" \ "title")
 
-  override def `type`(data: Document[JValue]): ZeroToMany[String] = {
-    // item['type'] OR item['original_format']].keys
-    extractStrings(unwrap(data) \ "item" \ "type") ++
-    extractKeys(unwrap(data) \ "item" \ "original_format") ++
-    format(data)
-  }
+  override def `type`(data: Document[JValue]): ZeroToMany[String] =
+    (extractStrings(unwrap(data) \ "item" \ "type") ++
+      extractStrings(unwrap(data) \ "item" \ "genre") ++
+      extractStrings(unwrap(data) \ "item" \ "original_format") ++
+      extractStrings(unwrap(data) \ "item" \ "format" \ "type"))
+      .map(_.applyAllowFilter(typeAllowList))
+      .filter(_.nonEmpty)
 }
 
