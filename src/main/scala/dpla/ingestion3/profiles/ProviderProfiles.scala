@@ -294,7 +294,18 @@ class NYPLProfile extends NyplIngestionProfile {
   type Mapping = NyplMapping
 
   override def getHarvester: Class[NYPLFileHarvester] = classOf[NYPLFileHarvester]
+
   override def getMapping = new NyplMapping
+}
+
+/**
+  * New Hampshire
+  */
+class NhProfile extends XmlProfile {
+  type Mapping = NcMapping
+
+  override def getHarvester = classOf[OaiHarvester]
+  override def getMapping = new NhMapping
 }
 
 /**

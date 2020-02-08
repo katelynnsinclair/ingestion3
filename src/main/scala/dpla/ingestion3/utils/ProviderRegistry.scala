@@ -72,6 +72,7 @@ object ProviderRegistry {
     "njde" -> Register(profile = new NJDEProfile),
     "northwest-heritage" -> Register(profile = new NorthwestHeritageProfile),
     "nypl" -> Register(profile = new NYPLProfile),
+    "nh" -> Register(profile = new NhProfile),
     "oklahoma" -> Register(profile = new OklahomaProfile),
     "ohio" -> Register(profile = new OhioProfile),
     "orbis-cascade" -> Register(profile = new OrbisCascadeProfile),
