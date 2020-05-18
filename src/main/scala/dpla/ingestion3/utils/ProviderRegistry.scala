@@ -82,7 +82,8 @@ object ProviderRegistry {
     "si" -> Register(profile = new SiProfile),
     "virginias" -> Register(profile = new VirginiasProfile),
     "vt" -> Register(profile = new VtProfile),
-    "wisconsin" -> Register(profile = new WiProfile)
+    "wisconsin" -> Register(profile = new WiProfile),
+    "wiki" -> Register(profile = new WikiProfile)
   )
 
   private def noProfileException(short: String) = {

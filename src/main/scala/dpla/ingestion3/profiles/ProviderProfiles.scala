@@ -407,3 +407,14 @@ class WiProfile extends XmlProfile {
   override def getHarvester = classOf[OaiHarvester]
   override def getMapping = new WiMapping
 }
+
+
+/**
+  * Wiki
+  */
+class WikiProfile extends XmlProfile {
+  type Mapping = WiMapping
+
+  override def getHarvester = classOf[WikiFileHarvester]
+  override def getMapping = new WiMapping
+}
