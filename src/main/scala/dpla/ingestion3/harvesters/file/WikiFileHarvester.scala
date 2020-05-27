@@ -1,31 +1,106 @@
 package dpla.ingestion3.harvesters.file
 
-import java.io.{BufferedReader, File, FileInputStream}
-import java.util.zip.GZIPInputStream
+import java.io.{BufferedReader, File}
 
 import com.databricks.spark.avro._
-import dpla.ingestion3.confs.i3Conf
-import dpla.ingestion3.harvesters.{AvroHelper, Harvester}
+import dpla.ingestion3.confs.{Harvest, i3Conf}
+import dpla.ingestion3.harvesters.AvroHelper
 import dpla.ingestion3.utils.{FlatFileIO, Utils}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileWriter
 import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.commons.io.{FileUtils, IOUtils}
-import org.apache.hadoop.fs.Path
-import org.apache.log4j.Logger
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.tools.bzip2.CBZip2InputStream
-import org.apache.tools.tar.TarInputStream
+import org.apache.commons.io.FileUtils
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.functions._
 
-import scala.util.{Failure, Success, Try}
 import scala.xml._
 
+object WikiMain {
+
+  def main(args: Array[String]): Unit = {
+//    val conf: i3Conf = i3Conf(
+//      harvest = Harvest(
+//        endpoint = Some("/Users/scott/dpla/i3/wiki/original/")
+//      )
+//    )
+//
+//    val wiki = new WikiFileHarvester("wiki", conf)
+//
+//    val harvestedData = wiki.localHarvest()
+//
+    val outputPath = "/Users/scott/dpla/i3/wiki/harvest/harvestedData.avro"
+
+//    println(s"Harvested count ${harvestedData.count()}")
+//
+//    println(s"Unique records ${harvestedData.select("id").distinct().count()}")
+//    println(s"Top 15 count of images per record \n${harvestedData.groupBy("id").count().sort(desc("count")).show(15, false)}")
+//
+//    harvestedData
+//      .write
+//      .format("com.databricks.spark.avro")
+//      .option("avroSchema", harvestedData.schema.toString)
+//      .mode(SaveMode.Overwrite)
+//      .avro(outputPath)
+//
+//    wiki.cleanUp()
+
+
+    /**
+      *
+      */
+
+    val datasetBucket = "dpla-master-dataset"
+    val providers = Set("digitalnc")
+    val maxTimestamp = "now"
+    val masterDataset = new MasterDataset(datasetBucket, providers, maxTimestamp)
+
+    println("Getting paths.")
+    val dataPaths: Set[String] = masterDataset.buildPathList("enrichment")
+
+    dataPaths.foreach(println(_))
+
+
+    val baseConf = new SparkConf()
+      .setAppName(s"Harvest: wiki")
+      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .set("spark.kryoserializer.buffer.max", "200")
+      .set("spark.master", "local[*]")
+
+    val spark = SparkSession.builder()
+      .config(baseConf)
+      .getOrCreate()
+
+    val wikiAvro = spark.read.avro(outputPath)
+    val records: DataFrame = spark.read.format("com.databricks.spark.avro").load(dataPaths.toSeq: _*) // to var args
+
+    println(s"Existing NC records ${records.count()}")
+    println(s"Unique records ${wikiAvro.select("id").distinct().count()}")
+    println(s"Top 15 count of images per record \n${wikiAvro.groupBy("id").count().sort(desc("count")).show(15, false)}")
+
+    records.printSchema()
+    wikiAvro.printSchema()
+
+    // records.join(wikiAvro, "id")
+  }
+}
+
+
 class WikiFileHarvester(
-                         spark: SparkSession,
                          shortName: String,
-                         conf: i3Conf,
-                         logger: Logger)
-  extends Harvester(spark, shortName, conf, logger) {
+                         conf: i3Conf)
+  extends Serializable {
+
+  val baseConf = new SparkConf()
+    .setAppName(s"Harvest: wiki")
+    .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    .set("spark.kryoserializer.buffer.max", "200")
+    .set("spark.master", "local[*]")
+
+  val spark = SparkSession.builder()
+    .config(baseConf)
+    .getOrCreate()
+
 
   /**
     * Case class hold the parsed value from a given FileResult
@@ -46,39 +121,37 @@ class WikiFileHarvester(
                         bufferedData: Option[BufferedReader] = None)
 
 
-  lazy val naraSchema: Schema =
+  lazy val schema: Schema =
     new Schema.Parser().parse(new FlatFileIO().readFileAsString("/avro/OriginalRecord.avsc"))
 
-  val avroWriterNara: DataFileWriter[GenericRecord] =
-    AvroHelper.avroWriter(shortName, naraTmp, naraSchema)
+  lazy val avroWriterWiki: DataFileWriter[GenericRecord] = AvroHelper.avroWriter(shortName, tmp, schema)
 
   // Temporary output path.
-  lazy val naraTmp: String = new File(FileUtils.getTempDirectory, shortName).getAbsolutePath
+  lazy val tmp: String = new File(FileUtils.getTempDirectory, shortName).getAbsolutePath
 
   def mimeType: String = "application_xml"
 
   /**
-    * Loads .gz, .tgz, .bz, and .tbz2, and plain old .tar files.
     *
-    * @param file File to parse
-    * @return TarInputstream of the tar contents
+    * @param file
+    * @param unixEpoch
     */
-  def getInputStream(file: File): Option[TarInputStream] =
-    file.getName match {
-      case gzName if gzName.endsWith("gz") || gzName.endsWith("tgz") =>
-        Some(new TarInputStream(new GZIPInputStream(new FileInputStream(file))))
+  private def harvestFile(file: File, unixEpoch: Long): Unit = {
+    println(s"Harvesting from ${file.getName}")
 
-      case bz2name if bz2name.endsWith("bz2") || bz2name.endsWith("tbz2") =>
-        val inputStream = new FileInputStream(file)
-        inputStream.skip(2)
-//        Some(new TarArchiveInputStream(new CBZip2InputStream(new BufferedInputStream(inputStream))))
-         Some(new TarInputStream(new CBZip2InputStream(inputStream)))
+    import spark.implicits._
+    val textFile = spark.read.textFile(file.getAbsolutePath) // reads file
 
-      case tarName if tarName.endsWith("tar") =>
-        Some(new TarInputStream(new FileInputStream(file)))
+    val df = textFile.toDF("record")
 
-      case _ => None
-    }
+    val tmpOut = df.select("record")
+      .as[String]
+      .rdd
+      .map(row => {
+        handleLine(row, unixEpoch)
+      })
+      .collect()
+  }
 
   /**
     * Takes care of parsing an xml file into a list of Nodes each representing an item
@@ -86,53 +159,36 @@ class WikiFileHarvester(
     * @param xml Root of the xml document
     * @return List of Options of id/item pairs.
     */
-  def handleXML(xml: Node): List[Option[ParsedResult]] = {
-    for {
-      //three different types of nodes contain children that represent records
-      items <- xml \\ "page" :: Nil
-      item <- items
-      if (item \ "revision" \ "contributor" \ "username").text.equalsIgnoreCase("DPLA Bot")
-    } yield item match {
-      case record: Node =>
-        val id = (record \ "title").text.toString
-        val outputXML = xmlToString(record)
-        val label = item.label
-        println(id)
-        Some(ParsedResult(id, outputXML))
-      case _ =>
-        logger.warn("Got weird result back for item path: " + item.getClass)
-        None
+  def handleXML(xml: Node): Option[ParsedResult] = {
+    if ((xml \\ "username").text.equalsIgnoreCase("DPLA Bot")) {
+      val id = getDplaIdFromTitile( (xml \ "title").text.toString )
+      val outputXML = xmlToString(xml)
+      Some(ParsedResult(id, outputXML))
+    } else {
+      None
     }
   }
 
   /**
-    * Main logic for handling individual entries in the tar.
     *
-    * @param tarResult  Case class representing extracted item from the tar
-    * @return Count of metadata items found.
+    * @param record
+    * @param unixEpoch
+    * @return
     */
-  def handleFile(record: String,
-                 unixEpoch: Long,
-                 filename: String): Try[Int] = {
-        Try {
-          val dataString = record.replaceAll("<\\?xml.*\\?>", "").trim
-          val xml = XML.loadString(dataString)
+  def handleLine(record: String, unixEpoch: Long): Int = {
+    val xml = XML.loadString(record)
+    val item = handleXML(xml)
 
-          println(xml.toString())
-          val items = handleXML(xml)
-
-          val counts = for {
-            itemOption <- items
-            item <- itemOption // filters out the Nones
-          } yield {
-            writeOutNara(unixEpoch, item, filename)
-            1
-          }
-          counts.sum
-        }
+    item match {
+      case Some(i) =>
+        writeOut(unixEpoch, i)
+        1
+      case None =>
+        0
     }
+  }
 
-  def getAvroWriterNara: DataFileWriter[GenericRecord] = avroWriterNara
+  def getAvroWriterWiki: DataFileWriter[GenericRecord] = avroWriterWiki
 
   /**
     * Writes item out
@@ -141,9 +197,8 @@ class WikiFileHarvester(
     * @param item Harvested record
     *
     */
-  def writeOutNara(unixEpoch: Long, item: ParsedResult, file: String): Unit = {
-    val avroWriter = getAvroWriterNara
-    val schema = naraSchema
+  def writeOut(unixEpoch: Long, item: ParsedResult): Unit = {
+    val avroWriter = getAvroWriterWiki
 
     val genericRecord = new GenericData.Record(schema)
     genericRecord.put("id", item.id)
@@ -153,131 +208,41 @@ class WikiFileHarvester(
     genericRecord.put("mimetype", mimeType)
 
     avroWriter.append(genericRecord)
-
   }
 
   /**
-    * Implements a stream of files from the tar.
-    * Can't use @tailrec here because the compiler can't recognize it as tail recursive,
-    * but this won't blow the stack.
-    *
-    * @param tarInputStream
-    * @return Lazy stream of tar records
-    */
-  def iter(tarInputStream: TarInputStream): Stream[FileResult] =
-    Option(tarInputStream.getNextEntry) match {
-      case None =>
-        Stream.empty
-
-      case Some(entry) =>
-        val filename = Try {
-          entry.getName
-        }.getOrElse("")
-
-        val result =
-          if (entry.isDirectory || filename.contains("._")) // drop OSX hidden files
-            None
-          else if (filename.contains(".xml")) // only read xml files
-            Some(IOUtils.toByteArray(tarInputStream, entry.getSize))
-          else
-            None
-
-        FileResult(entry.getName, result) #:: iter(tarInputStream)
-    }
-
-  /**
-    * Executes the nara harvest
+    * Executes the harvest
     */
   def localHarvest(): DataFrame = {
     val harvestTime = System.currentTimeMillis()
     val unixEpoch = harvestTime  / 1000L
 
-    logger.info(s"Writing harvest tmp output to $naraTmp")
-
-    // FIXME This assumes files on local file system and not on S3. Files should be able to read off of S3.
     val inFile = new File(conf.harvest.endpoint.getOrElse("in"))
 
     if (inFile.isDirectory)
-      for (file: File <- inFile.listFiles) {
-        logger.info(s"Harvesting from ${file.getName}")
+      for (file: File <- inFile.listFiles(new Bz2FileFilter)) {
         harvestFile(file, unixEpoch)
       }
     else
       harvestFile(inFile, unixEpoch)
 
     // flush writes
-   avroWriterNara.flush()
+    avroWriterWiki.flush()
 
-    // Get the absolute path of the avro file written to naraTmp directory. copyFromLocalFile() cannot copy
-    // a directory
-    val naraTempFile = new File(naraTmp)
-      .listFiles(new AvroFileFilter)
-      .headOption
-      .getOrElse(throw new RuntimeException(s"Unable to load avro file in $naraTmp directory. Unable to continue"))
-      .getAbsolutePath
-
-    val localSrcPath = new Path(naraTempFile)
-    val dfAllRecords = spark.read.avro(localSrcPath.toString)
-
-    dfAllRecords
-
+    // Read back avro and return DataFrame
+    val tmpOut = spark.read.avro(tmp)
+    tmpOut
   }
 
 
-  override def cleanUp(): Unit = {
-    logger.info(s"Cleaning up $naraTmp directory and files")
-    avroWriterNara.flush()
-    avroWriterNara.close()
+  /**
+    *
+    */
+  def cleanUp(): Unit = {
+    avroWriterWiki.flush()
+    avroWriterWiki.close()
     // Delete temporary output directory and files.
-    Utils.deleteRecursively(new File(naraTmp))
-  }
-
-  private def harvestFile(file: File, unixEpoch: Long): Unit = {
-//    val inputStream = getInputStream(file)
-//      .getOrElse(throw new IllegalArgumentException(s"Couldn't load tar file: ${file.getAbsolutePath}"))
-
-    println(s"Read from ${file.getAbsolutePath}")
-    val fileText = spark.read.textFile(file.getAbsolutePath) // reads uncompressed file
-    println(s"count ${fileText.count()}")
-
-    import spark.implicits._
-    val filtered = fileText
-      .map(string => XML.loadString(string).asInstanceOf[NodeSeq])
-      .filter(node => (node \\ "revision" \ "contributor" \ "username").text.equalsIgnoreCase("DPLA Bot"))
-      .map(node => {
-        val title = (node \\ "title").text
-        title.split(" - ").last.take(32)
-      })
-
-    println(s"Filtered ${filtered.count()}")
-    println (s"Distinct ${filtered.distinct().count()}")
-//
-//    val dplaIds = filtered.map( x => {
-//      val title = (XML.loadString(x) \\ "title").text
-////      File:The Almanac (1902) - DPLA - 946db18eacfdd76d8a257fc8443184c1 (page 49).jpg
-////      File:Albert F. Graf letter to Agnes H. Petersen, June 25, 1918 - DPLA - 740985c0712b257f733569fadc2505eb (page 6).jpg
-////      File:Block Card 1818 Giant Street - DPLA - 4c13c5f9d2046bbe8d8631a3255d1917.jpg
-////      File:Block Card 1202 Vance Street - DPLA - 7409bcc7a31bf8f91c49d27e04db5013.jpg
-////      File:The Almanac (1902) - DPLA - 946db18eacfdd76d8a257fc8443184c1 (page 50).jpg
-//      title.split(" - ").last.take(32)
-//    })
-
-
-
-//    val fileXml = fileText.map(record => {
-//      logger.info(s"record == $record")
-//      // handleFile(record, unixEpoch, file.getName)
-//      Row(XML.loadString(record))
-////       match {
-////        case Failure(exception) =>
-////          logger.error(s"Caught exception on ${record}.", exception)
-////          // 0
-////        case Success(count) =>
-////          // count
-////      }
-//    }).toDF()
-
-    // logger.info(s"Harvested $recordCount records from ${file.getName}")
+    Utils.deleteRecursively(new File(tmp))
   }
 
   /**
@@ -292,5 +257,67 @@ class WikiFileHarvester(
 
   def getDplaIdFromTitile(string: String): String = {
     string.split(" - ").last.take(32)
+  }
+}
+
+
+
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
+import com.amazonaws.services.s3.model.{ListObjectsRequest, ObjectListing}
+
+class MasterDataset(datasetBucket: String, providers: Set[String], maxTimestamp: String) {
+
+  /**
+    * Get a data file path for each provider.
+    * The file will be in the specified bucket and directory.
+    * The file will be the most recent without surpassing the maxTimestamp.
+    *
+    * @return           Set[String]   The names of the file paths
+    */
+  def buildPathList(path: String): Set[String] = {
+    // List all JSON files
+    import scala.collection.JavaConversions._
+    val s3: AmazonS3 = new AmazonS3Client()
+
+    def getPrefixes(bucket: String, prefix: String): Seq[String] = {
+      def recurse(objects: ObjectListing, acc: List[String]): Seq[String] = {
+        val summaries = objects.getCommonPrefixes.toList
+        if (objects.isTruncated) {
+          s3.listNextBatchOfObjects(objects)
+          recurse(objects, acc ::: summaries)
+        } else {
+          acc ::: summaries
+        }
+      }
+
+      val request = new ListObjectsRequest()
+        .withBucketName(datasetBucket)
+        .withDelimiter("/")
+        .withPrefix(prefix)
+      val objects: ObjectListing = s3.listObjects(request)
+      recurse(objects, List())
+    }
+
+    val providerList = getPrefixes(datasetBucket, "").toSet
+
+    val providersWhitelist =
+      if (providers == Set("all")) providerList
+      else providers.map(p => if (p.endsWith("/")) p else s"$p/")
+
+    val filteredProviderList = providerList.intersect(providersWhitelist)
+
+    val dataPaths = filteredProviderList.flatMap(provider =>
+      getPrefixes(datasetBucket, f"$provider$path/")
+        .filter(key => key.compareTo(f"$provider$path/$maxTimestamp") < 1)
+        .sorted
+        .lastOption)
+      .map(key => f"s3a://$datasetBucket/$key")
+
+    dataPaths
+
   }
 }
