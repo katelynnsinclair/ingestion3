@@ -415,6 +415,6 @@ class WiProfile extends XmlProfile {
 class WikiProfile extends XmlProfile {
   type Mapping = WiMapping
 
-  override def getHarvester = classOf[WikiFileHarvester]
+  override def getHarvester = classOf[VtFileHarvester] // Fixme
   override def getMapping = new WiMapping
 }

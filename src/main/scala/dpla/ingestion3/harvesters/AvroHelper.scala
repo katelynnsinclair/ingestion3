@@ -7,7 +7,7 @@ import org.apache.avro.Schema
 import org.apache.avro.file.DataFileWriter
 import org.apache.avro.generic.GenericRecord
 
-object AvroHelper {
+object AvroHelper extends Serializable {
 
   def avroWriter(nickname: String, outputPath: String, schema: Schema): DataFileWriter[GenericRecord] = {
     val filename = s"${nickname}_${System.currentTimeMillis()}.avro"

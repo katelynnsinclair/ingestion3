@@ -81,6 +81,8 @@ object WikiMain {
     records.printSchema()
     wikiAvro.printSchema()
 
+
+    // TODO which NC records are wiki eligable 
     // records.join(wikiAvro, "id")
   }
 }
