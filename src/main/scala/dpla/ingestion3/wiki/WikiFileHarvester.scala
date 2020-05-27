@@ -1,22 +1,28 @@
-package dpla.ingestion3.harvesters.file
+package dpla.ingestion3.wiki
 
 import java.io.{BufferedReader, File}
 
 import com.databricks.spark.avro._
-import dpla.ingestion3.confs.{Harvest, i3Conf}
+import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.harvesters.AvroHelper
+import dpla.ingestion3.harvesters.file.Bz2FileFilter
+import dpla.ingestion3.model
+import dpla.ingestion3.model.{ModelConverter, RowConverter}
 import dpla.ingestion3.utils.{FlatFileIO, Utils}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileWriter
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.storage.StorageLevel
 
+import scala.util.{Failure, Success, Try}
 import scala.xml._
 
-object WikiMain {
+object WikiMain extends WikiEvaluator {
 
   def main(args: Array[String]): Unit = {
 //    val conf: i3Conf = i3Conf(
@@ -76,13 +82,72 @@ object WikiMain {
 
     println(s"Existing NC records ${records.count()}")
     println(s"Unique records ${wikiAvro.select("id").distinct().count()}")
-    println(s"Top 15 count of images per record \n${wikiAvro.groupBy("id").count().sort(desc("count")).show(15, false)}")
+    // println(s"Top 15 count of images per record \n${wikiAvro.groupBy("id").count().sort(desc("count")).show(15, false)}")
 
-    records.printSchema()
-    wikiAvro.printSchema()
+    // records.printSchema()
+    // wikiAvro.printSchema()
 
 
-    // TODO which NC records are wiki eligable 
+    // TODO which NC records are wiki eligible
+
+    import spark.implicits._
+    val dplaMapDataRowEncoder: ExpressionEncoder[Row] = RowEncoder(model.sparkSchema)
+    val tupleRowBooleanEncoder: ExpressionEncoder[(Row, Boolean)] =
+      ExpressionEncoder.tuple(RowEncoder(model.sparkSchema), ExpressionEncoder())
+
+    val enrichedRows: DataFrame = records
+
+    println("enriched count " + enrichedRows.count())
+
+    val enrichResults: Dataset[(Row, Boolean)] = enrichedRows.map(row => {
+      Try{ ModelConverter.toModel(row) } match {
+        case Success(dplaMapData) =>
+
+          /**
+            * FIXUP
+            *
+            *  - Change from print to message logger
+            *
+            */
+          val criteria: WikiCriteria = isWikiEligible(dplaMapData)
+          (criteria.dataProvider, criteria.asset, criteria.rights) match {
+            // All required properties exist
+            case (true, true, true) => (RowConverter.toRow(dplaMapData, model.sparkSchema), true)
+            // Missing valid standardized rights
+            case (true, true, false) =>
+              println(s"${dplaMapData.dplaUri.toString} is missing valid rights. Value is ${dplaMapData.edmRights.getOrElse("_MISSING_")}")
+              (null, false)
+            // Missing assets
+            case (true, false, true) =>
+              println(s"${dplaMapData.dplaUri.toString} is missing assets.")
+              (null, false)
+            // Missing dataProvider URI
+            case (false, true, true) =>
+              println(s"${dplaMapData.dplaUri.toString} is missing dataProvider URI. Value is ${dplaMapData.dataProvider.name.getOrElse("_MISSSING_")}")
+              (null, false)
+            // Multiple missing required properties
+            case (_, _, _) =>
+              println(s"${dplaMapData.dplaUri.toString} is missing multiple requirements. " +
+                s"\n- dataProvider missing URI. Value is ${dplaMapData.dataProvider.name.getOrElse("_MISSSING_")}" +
+                s"\n- edmRights is ${dplaMapData.edmRights.getOrElse("_MISSING_")}" +
+                s"\n- iiif is ${dplaMapData.iiifManifest.getOrElse("_MISSING_")}" +
+                s"\n- mediaMaster is ${dplaMapData.mediaMaster.map(_.uri.toString).mkString("; ").orElse("_MISSING_")}")
+              (null, false)
+          }
+        case Failure(err) => (null, false)
+      }
+    })(tupleRowBooleanEncoder)
+
+    // Filter out only the wiki eligible records
+    val wikiRecords = enrichResults
+      .filter(tuple => tuple._2)
+      .map(tuple => tuple._1)(dplaMapDataRowEncoder)
+      .persist(StorageLevel.MEMORY_AND_DISK_SER)
+
+    // Fixup to logger
+    println(s"wiki records count ${wikiRecords.count()}")
+
+
     // records.join(wikiAvro, "id")
   }
 }
@@ -268,8 +333,8 @@ class WikiFileHarvester(
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
 import com.amazonaws.services.s3.model.{ListObjectsRequest, ObjectListing}
+import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
 
 class MasterDataset(datasetBucket: String, providers: Set[String], maxTimestamp: String) {
 
@@ -323,3 +388,5 @@ class MasterDataset(datasetBucket: String, providers: Set[String], maxTimestamp:
 
   }
 }
+
+
