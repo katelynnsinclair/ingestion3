@@ -3,7 +3,7 @@ package dpla.ingestion3.wiki
 import java.io.{BufferedReader, File}
 
 import com.databricks.spark.avro._
-import dpla.ingestion3.confs.i3Conf
+import dpla.ingestion3.confs.{CmdArgs, Ingestion3Conf, i3Conf}
 import dpla.ingestion3.harvesters.AvroHelper
 import dpla.ingestion3.harvesters.file.Bz2FileFilter
 import dpla.ingestion3.model
@@ -14,9 +14,8 @@ import org.apache.avro.file.DataFileWriter
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
+import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.storage.StorageLevel
 
 import scala.util.{Failure, Success, Try}
@@ -24,64 +23,70 @@ import scala.xml._
 
 object WikiMain extends WikiEvaluator {
 
+/**
+  * Expects four parameters:
+  * 1) a path to the wiki xml dump file(s) preprocessed using xmll
+  * 2) a path to output the harvested data
+  * 5) spark master (optional parameter that overrides a --master param submitted
+  *    via spark-submit)
+  *
+  * Usage
+  * -----
+  * To invoke via sbt:
+  * sbt "run-main dpla.ingestion3.wiki.WikiFileHarvest
+  *       --output=/output/path/to/harvest/
+  *       --conf=/path/to/conf
+  *       --name=shortName"
+  *       --sparkMaster=local[*]
+  */
   def main(args: Array[String]): Unit = {
-//    val conf: i3Conf = i3Conf(
-//      harvest = Harvest(
-//        endpoint = Some("/Users/scott/dpla/i3/wiki/original/")
-//      )
-//    )
-//
-//    val wiki = new WikiFileHarvester("wiki", conf)
-//
-//    val harvestedData = wiki.localHarvest()
-//
-    val outputPath = "/Users/scott/dpla/i3/wiki/harvest/harvestedData.avro"
+    // Read in command line args.
+    val cmdArgs = new CmdArgs(args)
 
-//    println(s"Harvested count ${harvestedData.count()}")
-//
-//    println(s"Unique records ${harvestedData.select("id").distinct().count()}")
-//    println(s"Top 15 count of images per record \n${harvestedData.groupBy("id").count().sort(desc("count")).show(15, false)}")
-//
+    // val dataIn = cmdArgs.getInput
+    val dataOut = cmdArgs.getOutput
+    val confFile = cmdArgs.getConfigFile
+    val shortName = cmdArgs.getProviderName
+    val sparkMaster: Option[String] = cmdArgs.getSparkMaster
+
+    // Load configuration from file.
+    val i3Conf = new Ingestion3Conf(confFile, Some(shortName))
+    val conf: i3Conf = i3Conf.load()
+
+    // Spark configuration
+    val baseConf = new SparkConf()
+      .setAppName(s"Harvest: wiki")
+      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .set("spark.kryoserializer.buffer.max", "200")
+      .set("spark.master", sparkMaster.getOrElse("local[*]"))
+
+    // Create SparkSession
+    val spark = SparkSession.builder()
+      .config(baseConf)
+      .getOrCreate()
+
+    val wiki = new WikiFileHarvester("wiki", conf, spark)
+
+    val harvestedData = wiki.localHarvest()
+
+    val wikiAvro = spark.read.avro(dataOut)
+
+    println(s"Harvested ${harvestedData.count()} DPLA items from wiki export ")
+
+    // This is duplicating work in WikiFileHarvester
 //    harvestedData
 //      .write
 //      .format("com.databricks.spark.avro")
 //      .option("avroSchema", harvestedData.schema.toString)
 //      .mode(SaveMode.Overwrite)
-//      .avro(outputPath)
-//
-//    wiki.cleanUp()
+//      .avro(dataOut)
+
+    wiki.cleanUp()
 
 
-    /**
-      *
-      */
 
-    val datasetBucket = "dpla-master-dataset"
-    val providers = Set("digitalnc")
-    val maxTimestamp = "now"
-    val masterDataset = new MasterDataset(datasetBucket, providers, maxTimestamp)
-
-    println("Getting paths.")
-    val dataPaths: Set[String] = masterDataset.buildPathList("enrichment")
-
-    dataPaths.foreach(println(_))
-
-
-    val baseConf = new SparkConf()
-      .setAppName(s"Harvest: wiki")
-      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .set("spark.kryoserializer.buffer.max", "200")
-      .set("spark.master", "local[*]")
-
-    val spark = SparkSession.builder()
-      .config(baseConf)
-      .getOrCreate()
-
-    val wikiAvro = spark.read.avro(outputPath)
-    val records: DataFrame = spark.read.format("com.databricks.spark.avro").load(dataPaths.toSeq: _*) // to var args
-
-    println(s"Existing NC records ${records.count()}")
-    println(s"Unique records ${wikiAvro.select("id").distinct().count()}")
+//    println(s"Existing NC records ${records.count()}")
+    //  println(s"Unique records ${wikiAvro.select("id").distinct().count()}")
     // println(s"Top 15 count of images per record \n${wikiAvro.groupBy("id").count().sort(desc("count")).show(15, false)}")
 
     // records.printSchema()
@@ -90,12 +95,36 @@ object WikiMain extends WikiEvaluator {
 
     // TODO which NC records are wiki eligible
 
+    // Fixup to logger
+    println(s"wiki records count ${wikiAvro.count()}")
+
+  }
+
+  def join(spark: SparkSession) = {
+
+    /**
+      *
+      */
+
+    val datasetBucket = "dpla-master-dataset"
+    val providers = Set("tennessee")
+    val maxTimestamp = "now"
+    val masterDataset = new MasterDataset(datasetBucket, providers, maxTimestamp)
+
+    println("Getting paths.")
+    val dataPaths: Set[String] = masterDataset.buildPathList("enrichment")
+
+    dataPaths.foreach(println(_))
+
+    val records: DataFrame = spark.read.format("com.databricks.spark.avro").load(dataPaths.toSeq: _*) // to var args
+
     import spark.implicits._
     val dplaMapDataRowEncoder: ExpressionEncoder[Row] = RowEncoder(model.sparkSchema)
+
     val tupleRowBooleanEncoder: ExpressionEncoder[(Row, Boolean)] =
       ExpressionEncoder.tuple(RowEncoder(model.sparkSchema), ExpressionEncoder())
 
-    val enrichedRows: DataFrame = records
+    val enrichedRows: DataFrame = records // .filter($"dplaUri" === "http://dp.la/api/items/74ed9993f6c9f24fa50960c3b61601b5")
 
     println("enriched count " + enrichedRows.count())
 
@@ -123,15 +152,20 @@ object WikiMain extends WikiEvaluator {
               (null, false)
             // Missing dataProvider URI
             case (false, true, true) =>
-              println(s"${dplaMapData.dplaUri.toString} is missing dataProvider URI. Value is ${dplaMapData.dataProvider.name.getOrElse("_MISSSING_")}")
+              println(s"${dplaMapData.dplaUri.toString} is missing dataProvider URI for name '${dplaMapData.dataProvider.name.getOrElse("_MISSSING_")}'")
               (null, false)
-            // Multiple missing required properties
+            //            // Multiple missing required properties
             case (_, _, _) =>
-              println(s"${dplaMapData.dplaUri.toString} is missing multiple requirements. " +
-                s"\n- dataProvider missing URI. Value is ${dplaMapData.dataProvider.name.getOrElse("_MISSSING_")}" +
-                s"\n- edmRights is ${dplaMapData.edmRights.getOrElse("_MISSING_")}" +
-                s"\n- iiif is ${dplaMapData.iiifManifest.getOrElse("_MISSING_")}" +
-                s"\n- mediaMaster is ${dplaMapData.mediaMaster.map(_.uri.toString).mkString("; ").orElse("_MISSING_")}")
+              //              val mediaMaster = dplaMapData.mediaMaster.map(_.uri.toString).mkString("; ")
+              //              println(s"${dplaMapData.dplaUri.toString} is missing multiple requirements. ")
+              //                if(!criteria.dataProvider) println(s"\n- dataProvider URI missing for '${dplaMapData.dataProvider.name.getOrElse("")}'")
+              //
+              //              if(!criteria.asset) println(s"\n- Assets missing for '${dplaMapData.dataProvider.name.getOrElse("")}'")
+              //              if(!criteria.dataProvider) println(s"\n- dataProvider URI missing for '${dplaMapData.dataProvider.name.getOrElse("")}'")
+              //              if(!criteria.dataProvider) println(s"\n- dataProvider URI missing for '${dplaMapData.dataProvider.name.getOrElse("")}'")
+              //              s"\n- edmRights is ${dplaMapData.edmRights.getOrElse("_MISSING_")}" +
+              //                s"\n- iiif is ${dplaMapData.iiifManifest.getOrElse("_MISSING_")}" +
+              //              )
               (null, false)
           }
         case Failure(err) => (null, false)
@@ -143,31 +177,21 @@ object WikiMain extends WikiEvaluator {
       .filter(tuple => tuple._2)
       .map(tuple => tuple._1)(dplaMapDataRowEncoder)
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
-
-    // Fixup to logger
-    println(s"wiki records count ${wikiRecords.count()}")
-
-
-    // records.join(wikiAvro, "id")
   }
 }
 
 
+/**
+  *
+  * @param shortName
+  * @param conf
+  * @param spark
+  */
 class WikiFileHarvester(
                          shortName: String,
-                         conf: i3Conf)
+                         conf: i3Conf,
+                         spark: SparkSession)
   extends Serializable {
-
-  val baseConf = new SparkConf()
-    .setAppName(s"Harvest: wiki")
-    .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    .set("spark.kryoserializer.buffer.max", "200")
-    .set("spark.master", "local[*]")
-
-  val spark = SparkSession.builder()
-    .config(baseConf)
-    .getOrCreate()
-
 
   /**
     * Case class hold the parsed value from a given FileResult
@@ -326,10 +350,6 @@ class WikiFileHarvester(
     string.split(" - ").last.take(32)
   }
 }
-
-
-
-
 
 // ---------------------------------------------------------------------------------------------------------------------
 

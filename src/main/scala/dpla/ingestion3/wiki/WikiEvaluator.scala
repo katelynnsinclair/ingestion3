@@ -39,12 +39,14 @@ trait WikiEvaluator {
     * @param uris
     * @return
     */
-  def isDataProviderWikiEligible(uris: Seq[URI]): Boolean =
+  def isDataProviderWikiEligible(uris: Seq[URI]): Boolean = {
+//    uris.foreach(u => println(u.toString))
+
     uris.find(uri => uri.toString.startsWith("https://wikidata.org/wiki/")) match {
       case Some(_) => true
       case None => false
     }
-
+  }
   def isAssetEligible(iiif: Option[URI], mediaMasters: Seq[EdmWebResource]): Boolean =
     (iiif, mediaMasters.isEmpty) match {
       case(None, true) => false // IIIF manifest and media masters do not exist
@@ -59,6 +61,11 @@ trait WikiEvaluator {
     val dataProvider = isDataProviderWikiEligible(record.dataProvider.exactMatch)
     val rights = isRightsWikiEligible(record.edmRights)
     val asset = isAssetEligible(record.iiifManifest, record.mediaMaster)
+
+//    println(record.dataProvider)
+//    println(record.edmRights)
+//    println(record.iiifManifest)
+//    println(record.mediaMaster)
 
     //    if(dataProvider && asset)
     //      println(s"$dataProvider && $asset && $rights == ${record.edmRights}")
