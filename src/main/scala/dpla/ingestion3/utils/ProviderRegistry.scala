@@ -76,10 +76,10 @@ object ProviderRegistry {
     "sc" -> Register(profile = new ScProfile),
     "rumsey" -> Register(profile = new RumseyProfile),
     "sd" -> Register(profile = new SdProfile),
+    "smithsonian" -> Register(profile = new SiProfile),
     "tn" -> Register(profile = new TnProfile),
-    "tx" -> Register(profile = new TxProfile),
+    "texas" -> Register(profile = new TxProfile),
     "txdl" -> Register(profile = new TxdlProfile),
-    "si" -> Register(profile = new SiProfile),
     "virginias" -> Register(profile = new VirginiasProfile),
     "vt" -> Register(profile = new VtProfile),
     "wisconsin" -> Register(profile = new WiProfile)
