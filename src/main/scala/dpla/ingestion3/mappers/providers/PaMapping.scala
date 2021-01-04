@@ -27,6 +27,7 @@ class PaMapping extends XmlMapping with XmlExtractor
 
   override def collection(data: Document[NodeSeq]): Seq[DcmiTypeCollection] =
     extractStrings(metadataRoot(data) \ "isPartOf")
+      .filter(_.nonEmpty)
       .map(nameOnlyCollection)
 
   override def contributor(data: Document[NodeSeq]): Seq[EdmAgent] =
