@@ -1,18 +1,22 @@
 package dpla.ingestion3.wiki
 
-import java.io.{BufferedReader, File}
+import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
+import java.time.LocalDateTime
+import java.util.zip.GZIPInputStream
 
 import com.databricks.spark.avro._
 import dpla.ingestion3.confs.{CmdArgs, Ingestion3Conf, i3Conf}
+import dpla.ingestion3.dataStorage.OutputHelper
 import dpla.ingestion3.harvesters.AvroHelper
 import dpla.ingestion3.harvesters.file.Bz2FileFilter
 import dpla.ingestion3.model
 import dpla.ingestion3.model.{ModelConverter, RowConverter}
-import dpla.ingestion3.utils.{FlatFileIO, Utils}
+import dpla.ingestion3.utils.{AvroUtils, FlatFileIO, Utils}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileWriter
 import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.commons.io.FileUtils
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
@@ -33,7 +37,7 @@ object WikiMain extends WikiEvaluator {
   * Usage
   * -----
   * To invoke via sbt:
-  * sbt "run-main dpla.ingestion3.wiki.WikiFileHarvest
+  * sbt "run-main dpla.ingestion3.wiki.WikiMain
   *       --output=/output/path/to/harvest/
   *       --conf=/path/to/conf
   *       --name=shortName"
@@ -65,39 +69,39 @@ object WikiMain extends WikiEvaluator {
       .config(baseConf)
       .getOrCreate()
 
+    // This start time is used for documentation and output file naming.
+    val startDateTime = LocalDateTime.now
+
+    val outputHelper: OutputHelper =
+      new OutputHelper(dataOut, shortName, "harvest", startDateTime)
+
+    println(s"Saving to ${outputHelper.activityPath}")
+
     val wiki = new WikiFileHarvester("wiki", conf, spark)
 
     val harvestedData = wiki.localHarvest()
 
-    val wikiAvro = spark.read.avro(dataOut)
-
     println(s"Harvested ${harvestedData.count()} DPLA items from wiki export ")
 
     // This is duplicating work in WikiFileHarvester
-//    harvestedData
-//      .write
-//      .format("com.databricks.spark.avro")
-//      .option("avroSchema", harvestedData.schema.toString)
-//      .mode(SaveMode.Overwrite)
-//      .avro(dataOut)
+    harvestedData
+      .write
+      .format("com.databricks.spark.avro")
+      .option("avroSchema", harvestedData.schema.toString)
+      .mode(SaveMode.Overwrite)
+      .avro(outputHelper.activityPath)
 
     wiki.cleanUp()
 
-
-
-//    println(s"Existing NC records ${records.count()}")
-    //  println(s"Unique records ${wikiAvro.select("id").distinct().count()}")
+    // println(s"Existing NC records ${records.count()}")
+    // println(s"Unique records ${wikiAvro.select("id").distinct().count()}")
     // println(s"Top 15 count of images per record \n${wikiAvro.groupBy("id").count().sort(desc("count")).show(15, false)}")
-
-    // records.printSchema()
-    // wikiAvro.printSchema()
-
 
     // TODO which NC records are wiki eligible
 
     // Fixup to logger
+    val wikiAvro = spark.read.avro(outputHelper.activityPath)
     println(s"wiki records count ${wikiAvro.count()}")
-
   }
 
   def join(spark: SparkSession) = {
@@ -220,6 +224,8 @@ class WikiFileHarvester(
   // Temporary output path.
   lazy val tmp: String = new File(FileUtils.getTempDirectory, shortName).getAbsolutePath
 
+  println(s"Saving to $tmp")
+
   def mimeType: String = "application_xml"
 
   /**
@@ -229,21 +235,45 @@ class WikiFileHarvester(
     */
   private def harvestFile(file: File, unixEpoch: Long): Unit = {
     println(s"Harvesting from ${file.getName}")
+//
+//    import spark.implicits._
+//    val textFile = spark.read.textFile(file.getAbsolutePath) // reads file
+//    val df = textFile.toDF("record")
+//
+//    df.select("record")
+//      .as[String]
+//      .rdd
+//      .map(row => {
+//        handleLine(row, unixEpoch)
+//      })
+//      .collect()
 
-    import spark.implicits._
-    val textFile = spark.read.textFile(file.getAbsolutePath) // reads file
+    val inputStream = getInputStream(file)
+      .getOrElse(throw new IllegalArgumentException(s"Couldn't load file, ${file.getAbsolutePath}"))
 
-    val df = textFile.toDF("record")
+    val iter = IOUtils.lineIterator(inputStream)
 
-    val tmpOut = df.select("record")
-      .as[String]
-      .rdd
-      .map(row => {
-        handleLine(row, unixEpoch)
-      })
-      .collect()
+    var lineCount: Int = 0
+
+    while (iter.hasNext) {
+      Option(iter.nextLine) match {
+        case Some(line) => lineCount += handleLine(line, unixEpoch)
+        case None => 0
+      }
+    }
+
+    IOUtils.closeQuietly(inputStream)
+
+    println(s"Harvested $lineCount lines ")
   }
 
+  def getInputStream(file: File): Option[InputStreamReader] = {
+    file.getName match {
+      case zipName if zipName.endsWith("bz2") =>
+        Some(new InputStreamReader(new BZip2CompressorInputStream(new FileInputStream(file))))
+      case _ => None
+    }
+  }
   /**
     * Takes care of parsing an xml file into a list of Nodes each representing an item
     *
@@ -251,13 +281,11 @@ class WikiFileHarvester(
     * @return List of Options of id/item pairs.
     */
   def handleXML(xml: Node): Option[ParsedResult] = {
-    if ((xml \\ "username").text.equalsIgnoreCase("DPLA Bot")) {
-      val id = getDplaIdFromTitile( (xml \ "title").text.toString )
-      val outputXML = xmlToString(xml)
-      Some(ParsedResult(id, outputXML))
-    } else {
-      None
-    }
+    // if ((xml \\ "username").text.equalsIgnoreCase("DPLA Bot"))
+    val id = getDplaIdFromTitile( (xml \ "title").text.toString )
+    val outputXML = xmlToString(xml)
+
+    Some(ParsedResult(id, outputXML))
   }
 
   /**
@@ -289,7 +317,7 @@ class WikiFileHarvester(
     *
     */
   def writeOut(unixEpoch: Long, item: ParsedResult): Unit = {
-    val avroWriter = getAvroWriterWiki
+    // val avroWriter = getAvroWriterWiki
 
     val genericRecord = new GenericData.Record(schema)
     genericRecord.put("id", item.id)
@@ -298,13 +326,14 @@ class WikiFileHarvester(
     genericRecord.put("document", item.item)
     genericRecord.put("mimetype", mimeType)
 
-    avroWriter.append(genericRecord)
+    avroWriterWiki.append(genericRecord)
   }
 
   /**
     * Executes the harvest
     */
   def localHarvest(): DataFrame = {
+
     val harvestTime = System.currentTimeMillis()
     val unixEpoch = harvestTime  / 1000L
 
@@ -318,12 +347,28 @@ class WikiFileHarvester(
       harvestFile(inFile, unixEpoch)
 
     // flush writes
+    avroWriterWiki.sync()
     avroWriterWiki.flush()
 
     // Read back avro and return DataFrame
     val tmpOut = spark.read.avro(tmp)
+
+    println(s"Harvested ${tmpOut.count()} records in `tmp` dataframe")
     tmpOut
   }
+
+  def avroWriter(nickname: String, outputPath: String, schema: Schema): DataFileWriter[GenericRecord] = {
+    val filename = s"${nickname}_${System.currentTimeMillis()}.avro"
+    val path = if (outputPath.endsWith("/")) outputPath else outputPath + "/"
+    val outputDir = new File(path)
+    outputDir.mkdirs()
+    if (!outputDir.exists) throw new RuntimeException(s"Output directory ${path} does not exist")
+
+    val avroWriter = AvroUtils.getAvroWriter(new File(path + filename), schema)
+    avroWriter.setFlushOnEveryBlock(true)
+    avroWriter
+  }
+
 
 
   /**
