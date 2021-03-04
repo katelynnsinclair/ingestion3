@@ -27,7 +27,7 @@ class OutputHelper(root: String,
                    activity: String,
                    startDateTime: LocalDateTime) {
 
-  val s3WriteProtocol: String = "s3a"
+  val s3WriteProtocol: String = "s3"
 
   /**
     * If the given root is an S3 path, parse an S3Address.
