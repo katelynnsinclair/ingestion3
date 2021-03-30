@@ -2302,11 +2302,11 @@
 				"Wikidata": "Q114071"
 			},
 			"Phillips Academy Andover": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q1432645"
 			},
 			"Phillips Academy": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q1432645"
 			},
 			"Pine Manor College": {
@@ -2788,11 +2788,11 @@
 				"Wikidata": "Q5729648"
 			},
 			"Houston County Public Library System": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q30634671"
 			},
 			"Houston County Public Library": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q30634671"
 			},
 			"Howard University": {
@@ -2948,7 +2948,7 @@
 				"Wikidata": "Q1020699"
 			},
 			"Screven-Jenkins Regional Library System": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q30633958"
 			},
 			"Seattle Civil Rights and Labor History Project": {
@@ -2964,7 +2964,7 @@
 				"Wikidata": "Q69485551"
 			},
 			"Southwest Georgia Regional Library": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q30625967"
 			},
 			"Special Collections and Archives": {
@@ -3073,7 +3073,7 @@
 			},
 			"Middle Georgia Archives": {
 				"upload": true,
-				"Wikidata": "Q89281810"
+				"Wikidata": "Q105635856"
 			},
 			"Washington Memorial Library (Macon, Ga.)": {
 				"upload": true,
@@ -3198,7 +3198,7 @@
 				"Wikidata": "Q1141571"
 			},
 			"Minneapolis Institute of Art": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q1700481"
 			},
 			"Minneapolis Park & Recreation Board": {
@@ -6164,7 +6164,7 @@
 				"Wikidata": "Q7649352"
 			},
 			"Temple University": {
-				"upload": false,
+				"upload": true,
 				"Wikidata": "Q1420239"
 			},
 			"The Kiski School": {
