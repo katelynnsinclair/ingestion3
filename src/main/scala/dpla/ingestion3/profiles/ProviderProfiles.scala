@@ -42,7 +42,7 @@ class CtProfile extends XmlProfile {
 class DcProfile extends XmlProfile {
   type Mapping = DcMapping
 
-  override def getHarvester = classOf[OaiHarvester]
+  override def getHarvester = classOf[DCFileHarvester]
   override def getMapping = new DcMapping
 }
 
