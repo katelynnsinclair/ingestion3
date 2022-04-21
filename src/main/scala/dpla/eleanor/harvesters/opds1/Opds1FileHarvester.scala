@@ -1,12 +1,12 @@
 package dpla.eleanor.harvesters.opds1
 
 import java.io.{File, FileInputStream, InputStreamReader}
-
 import dpla.eleanor.Schemata.{HarvestData, Payload}
 import dpla.eleanor.harvesters.Retry
 import dpla.eleanor.{HarvestStatics, Schemata}
 import org.apache.commons.io.IOUtils
 
+import java.nio.charset.StandardCharsets
 import scala.xml._
 
 /**
@@ -70,5 +70,5 @@ trait Opds1FileHarvester extends Retry {
   }
 
   def xmlToBytes(node: Node): Array[Byte] =
-    Utility.serialize(node, minimizeTags = MinimizeMode.Always).toString.getBytes
+    Utility.serialize(node, minimizeTags = MinimizeMode.Always).toString.getBytes(StandardCharsets.UTF_8)
 }
