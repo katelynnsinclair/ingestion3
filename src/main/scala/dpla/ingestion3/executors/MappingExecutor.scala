@@ -81,10 +81,10 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     val harvestedRecords: DataFrame = spark.read.avro(dataIn).repartition(1000)
 
     // Get distinct harvest records
-    val distinctHarvest: DataFrame = harvestedRecords.distinct
+    // val distinctHarvest: DataFrame = harvestedRecords.distinct
 
     // For reporting purposes, calculate number of duplicate harvest records
-    val duplicateHarvest: Long = harvestedRecords.count - distinctHarvest.count
+    // val duplicateHarvest: Long = harvestedRecords.count - distinctHarvest.count
 
     // Run the mapping over the Dataframe
     // Transformation only
