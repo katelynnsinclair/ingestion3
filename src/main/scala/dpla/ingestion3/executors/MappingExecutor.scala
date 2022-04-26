@@ -90,66 +90,67 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     // Transformation only
     val extractorClass = getExtractorClass(shortName) // lookup from registry
 
-    val mappingResults: RDD[OreAggregation] = harvestedRecords
+    val mappingResults: Dataset[OreAggregation] = harvestedRecords
       .select("document")
       .as[String]
-      .rdd
+      // .rdd
       .map(document => dplaMap.map(document, extractorClass))
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
-
-    // Get a list of originalIds that appear in more than one record
-    val duplicateOriginalIds: Broadcast[Array[String]] =
-      spark.sparkContext.broadcast(
-        mappingResults
-          .map(_.originalId)
-          .countByValue  // action, forces evaluation
-          .collect{ case(origId, count) if count > 1 && origId != "" => origId }
-          .toArray
-      )
-
-
-    // Update messages to include duplicate originalId
-    val enforceDuplidateIds = getExtractorClass(shortName).getMapping.enforceDuplicateIds
-
-    val updatedResults: RDD[OreAggregation] = mappingResults.map(oreAgg => {
-      oreAgg.copy(messages =
-        if (duplicateOriginalIds.value.contains(oreAgg.originalId))
-          duplicateOriginalId(oreAgg.originalId, enforceDuplidateIds) +: oreAgg.messages // prepend is faster that append on seq
-        else
-          oreAgg.messages
-      )
-    })
-
-    // Encode to Row-based structure
-    val encodedMappingResults: DataFrame =
-      spark.createDataset(
-        updatedResults.map(oreAgg => RowConverter.toRow(oreAgg, model.sparkSchema))
-      )(oreAggregationEncoder)
-        .persist(StorageLevel.MEMORY_AND_DISK_SER)
-
-    // Must evaluate encodedMappingResults before successResults is called.
-    // Otherwise spark will attempt to evaluate the filter transformation before the encoding transformation.
-    val totalCount = encodedMappingResults.count
-
-    // Removes records from mappingResults that have at least one IngestMessage
-    // with a level of IngestLogLevel.error
-    // Transformation only
-    val successResults: DataFrame = encodedMappingResults
-      .filter(oreAggRow => {
-        !oreAggRow // not
-          .getAs[mutable.WrappedArray[Row]]("messages") // get all messages
-          .map(msg => msg.getString(1)) // extract the levels into a list
-          .contains(IngestLogLevel.error) // does that list contain any errors?
-      })
+      // .toDS()
+//
+//    // Get a list of originalIds that appear in more than one record
+//    val duplicateOriginalIds: Broadcast[Array[String]] =
+//      spark.sparkContext.broadcast(
+//        mappingResults
+//          .map(_.originalId)
+//          .countByValue  // action, forces evaluation
+//          .collect{ case(origId, count) if count > 1 && origId != "" => origId }
+//          .toArray
+//      )
+//
+//
+//    // Update messages to include duplicate originalId
+//    val enforceDuplidateIds = getExtractorClass(shortName).getMapping.enforceDuplicateIds
+//
+//    val updatedResults: RDD[OreAggregation] = mappingResults.map(oreAgg => {
+//      oreAgg.copy(messages =
+//        if (duplicateOriginalIds.value.contains(oreAgg.originalId))
+//          duplicateOriginalId(oreAgg.originalId, enforceDuplidateIds) +: oreAgg.messages // prepend is faster that append on seq
+//        else
+//          oreAgg.messages
+//      )
+//    })
+//
+//    // Encode to Row-based structure
+//    val encodedMappingResults: DataFrame =
+//      spark.createDataset(
+//        updatedResults.map(oreAgg => RowConverter.toRow(oreAgg, model.sparkSchema))
+//      )(oreAggregationEncoder)
+//        .persist(StorageLevel.MEMORY_AND_DISK_SER)
+//
+//    // Must evaluate encodedMappingResults before successResults is called.
+//    // Otherwise spark will attempt to evaluate the filter transformation before the encoding transformation.
+//    val totalCount = encodedMappingResults.count
+//
+//    // Removes records from mappingResults that have at least one IngestMessage
+//    // with a level of IngestLogLevel.error
+//    // Transformation only
+//    val successResults: DataFrame = encodedMappingResults
+//      .filter(oreAggRow => {
+//        !oreAggRow // not
+//          .getAs[mutable.WrappedArray[Row]]("messages") // get all messages
+//          .map(msg => msg.getString(1)) // extract the levels into a list
+//          .contains(IngestLogLevel.error) // does that list contain any errors?
+//      })
 
     // Results must be written before _LOGS.
     // Otherwise, spark interpret the `successResults' `outputPath' as
     // already existing, and will fail to write.
-    successResults.write.avro(outputPath)
+    mappingResults.write.avro(outputPath)
 
     // Get counts
     val validRecordCount = spark.read.avro(outputPath).count // requires read-after-write consistency
-    val attemptedCount = totalCount
+    val attemptedCount = 0
 
     // Write manifest
     val manifestOpts: Map[String, String] = Map(
@@ -168,25 +169,25 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     val logsPath = outputHelper.logsPath
 
     // Collect the values needed to generate the report
-    val finalReport =
-    buildFinalReport(
-      encodedMappingResults,
-      shortName,
-      logsPath,
-      startTime,
-      endTime,
-      attemptedCount,
-      validRecordCount,
-      duplicateHarvest)(spark)
+//    val finalReport =
+//    buildFinalReport(
+//      encodedMappingResults,
+//      shortName,
+//      logsPath,
+//      startTime,
+//      endTime,
+//      attemptedCount,
+//      validRecordCount,
+//      duplicateHarvest)(spark)
 
     // Format the summary report and write it log file
-    val mappingSummary = MappingSummary.getSummary(finalReport)
-    outputHelper.writeSummary(mappingSummary) match {
-      case Success(s) => logger.info(s"Summary written to $s.")
-      case Failure(f) => logger.warn(s"Summary failed to write: $f")
-    }
+//     val mappingSummary = MappingSummary.getSummary(finalReport)
+//    outputHelper.writeSummary(mappingSummary) match {
+//      case Success(s) => logger.info(s"Summary written to $s.")
+//      case Failure(f) => logger.warn(s"Summary failed to write: $f")
+//    }
     // Send the mapping summary to the console as well (for convenience)
-    logger.info(mappingSummary)
+//    logger.info(mappingSummary)
 
     spark.stop()
 
