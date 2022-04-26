@@ -41,9 +41,6 @@ object EnrichEntry extends EnrichExecutor {
     // Create enrichment logger.
     val enrichLogger = Utils.createLogger("enrichment", shortName)
 
-    // Load configuration from file
-    val i3Conf: i3Conf = new Ingestion3Conf(confFile).load()
-
     val baseConf = new SparkConf()
       .setAppName(s"Enrichment: $shortName")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
@@ -54,6 +51,6 @@ object EnrichEntry extends EnrichExecutor {
       case None => baseConf
     }
 
-    executeEnrichment(sparkConf, dataIn, dataOut, shortName, enrichLogger, i3Conf)
+    executeEnrichment(sparkConf, dataIn, dataOut, shortName, enrichLogger)
   }
 }
