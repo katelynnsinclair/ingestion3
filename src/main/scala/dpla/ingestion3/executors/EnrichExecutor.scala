@@ -36,8 +36,7 @@ trait EnrichExecutor extends Serializable {
                         dataIn: String,
                         dataOut: String,
                         shortName: String,
-                        logger: Logger,
-                        i3conf: i3Conf): String = {
+                        logger: Logger): String = {
 
     // Verify that twofishes is reachable
     // Utils.pingTwofishes(i3conf)
@@ -78,7 +77,7 @@ trait EnrichExecutor extends Serializable {
     // NotSerializableException errors, which originate in several of the
     // individual enrichments.
     object SharedDriver {
-      val driver = new EnrichmentDriver(i3conf)
+      val driver = new EnrichmentDriver()
       def get: EnrichmentDriver = driver
     }
 

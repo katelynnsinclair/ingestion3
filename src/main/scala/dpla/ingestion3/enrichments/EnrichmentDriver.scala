@@ -1,6 +1,5 @@
 package dpla.ingestion3.enrichments
 
-import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.enrichments.date.DateBuilder
 import dpla.ingestion3.model._
 import dpla.ingestion3.enrichments.normalizations.StandardNormalizations._
@@ -8,7 +7,7 @@ import dpla.ingestion3.enrichments.normalizations.StandardNormalizations._
 import scala.util.Try
 
 
-class EnrichmentDriver(conf: i3Conf) extends Serializable {
+class EnrichmentDriver() extends Serializable {
   /**
     * Reads Twofishes hostname and port from application config file
     *
@@ -16,8 +15,8 @@ class EnrichmentDriver(conf: i3Conf) extends Serializable {
     * @see SpatialEnrichmentIntegrationTest
     */
   object Geocoder extends Twofisher {
-    override def hostname: String = conf.twofishes.hostname.getOrElse("localhost")
-    override def port: String = conf.twofishes.port.getOrElse("8081")
+    override def hostname: String = "localhost"
+    override def port: String = "8081"
   }
 
   val dateEnrichment = new DateBuilder()

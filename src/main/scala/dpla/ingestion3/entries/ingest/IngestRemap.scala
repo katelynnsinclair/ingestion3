@@ -61,7 +61,6 @@ object IngestRemap extends MappingExecutor
     val cmdArgs = new CmdArgs(args)
 
     val baseDataOut = cmdArgs.getOutput
-    val confFile = cmdArgs.getConfigFile
     val shortName = cmdArgs.getProviderName
     val input = cmdArgs.getInput
     val sparkMaster: Option[String] = cmdArgs.getSparkMaster
@@ -86,8 +85,8 @@ object IngestRemap extends MappingExecutor
     logger.info(s"Using harvest data from $harvestData")
 
     // Load configuration from file.
-    val i3Conf = new Ingestion3Conf(confFile, Some(shortName))
-    val conf = i3Conf.load()
+//    val i3Conf = new Ingestion3Conf(confFile, Some(shortName))
+//    val conf = i3Conf.load()
 
     val baseConf = new SparkConf()
       .setAppName(s"IngestRemap: $shortName")
@@ -106,7 +105,7 @@ object IngestRemap extends MappingExecutor
 
     // Enrichment
     val enrichDataOut: String =
-      executeEnrichment(sparkConf, mapDataOut, baseDataOut, shortName, logger, conf)
+      executeEnrichment(sparkConf, mapDataOut, baseDataOut, shortName, logger)
 
     // Json-l
      executeJsonl(sparkConf, enrichDataOut, baseDataOut, shortName, logger)
