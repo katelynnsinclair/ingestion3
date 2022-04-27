@@ -90,13 +90,12 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     // Transformation only
     val extractorClass = getExtractorClass(shortName) // lookup from registry
 
-    val mappingResults: Dataset[OreAggregation] = harvestedRecords
+    val mappingResults: RDD[OreAggregation] = harvestedRecords
       .select("document")
       .as[String]
-      // .rdd
+      .rdd
       .map(document => dplaMap.map(document, extractorClass))
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
-      // .toDS()
 
     // Get a list of originalIds that appear in more than one record
 //    val duplicateOriginalIds: Broadcast[Array[String]] =
@@ -121,12 +120,12 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
 //      )
 //    })
 //
-//    // Encode to Row-based structure
-//    val encodedMappingResults: DataFrame =
-//      spark.createDataset(
-//        updatedResults.map(oreAgg => RowConverter.toRow(oreAgg, model.sparkSchema))
-//      )(oreAggregationEncoder)
-//        .persist(StorageLevel.MEMORY_AND_DISK_SER)
+    // Encode to Row-based structure
+    val encodedMappingResults: DataFrame =
+      spark.createDataset(
+        mappingResults.map(oreAgg => RowConverter.toRow(oreAgg, model.sparkSchema))
+      )(oreAggregationEncoder)
+        .persist(StorageLevel.MEMORY_AND_DISK_SER)
 //
 //    // Must evaluate encodedMappingResults before successResults is called.
 //    // Otherwise spark will attempt to evaluate the filter transformation before the encoding transformation.
@@ -146,7 +145,7 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     // Results must be written before _LOGS.
     // Otherwise, spark interpret the `successResults' `outputPath' as
     // already existing, and will fail to write.
-    mappingResults.write.avro(outputPath)
+    encodedMappingResults.write.avro(outputPath)
 
     // Get counts
     val validRecordCount = spark.read.avro(outputPath).count // requires read-after-write consistency
