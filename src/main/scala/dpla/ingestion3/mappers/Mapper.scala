@@ -457,7 +457,7 @@ class XmlMapper extends Mapper[NodeSeq, XmlMapping] {
           `type` = validatedType
         ),
         originalId = validatedOriginalId,
-        messages = msgCollector.getAll()
+        messages = Seq() // msgCollector.getAll() // FIXME Add back messages 
       )
     } match {
       case Success(oreAggregation) => oreAggregation
