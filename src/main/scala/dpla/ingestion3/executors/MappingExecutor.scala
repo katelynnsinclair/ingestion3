@@ -97,8 +97,8 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
       .map(document => dplaMap.map(document, extractorClass))
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
       // .toDS()
-//
-//    // Get a list of originalIds that appear in more than one record
+
+    // Get a list of originalIds that appear in more than one record
 //    val duplicateOriginalIds: Broadcast[Array[String]] =
 //      spark.sparkContext.broadcast(
 //        mappingResults
@@ -107,9 +107,9 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
 //          .collect{ case(origId, count) if count > 1 && origId != "" => origId }
 //          .toArray
 //      )
-//
-//
-//    // Update messages to include duplicate originalId
+
+
+    // Update messages to include duplicate originalId
 //    val enforceDuplidateIds = getExtractorClass(shortName).getMapping.enforceDuplicateIds
 //
 //    val updatedResults: RDD[OreAggregation] = mappingResults.map(oreAgg => {

@@ -2,12 +2,13 @@
 
 this_script_name=$0
 output=$1               # Output to
-name=$3                 # name of provider
-input=$4                # input
-ec2_type=$5             # ec2 instance for cluster
+name=$2                # name of provider
+input=$3                # input
+ec2_type=$4             # ec2 instance for cluster
 
 
 harvest_input=${input}${name}/harvest/
+i3_jar=ingestion3-assembly-0.0.1.jar
 
 echo "Running with parameters:
   - name=$name
@@ -18,16 +19,11 @@ echo "Running with parameters:
   " 2>&1 | tee /tmp/spark-submit-log
 
 # build and deploy ingestion3 to s3
-sbt assembly
-echo "Copying to s3://dpla-ingestion3/"
-aws s3 cp ./target/scala-2.11/ingestion3-assembly-0.1.0.jar s3://dpla-ingestion3/
+# sbt -J-Xms2048m -J-Xmx2048m assembly
+# echo "Copying to s3://dpla-ingestion3/"
+# aws s3 cp ./target/scala-2.11/$i3_jar s3://dpla-ingestion3/
 
 # spin up EMR cluster and run job
-# subnet-1bb90e53 = public-us-east-1b
-# Old config ec2-attributs
-#  "ServiceAccessSecurityGroup": "sg-07459c7a",
-#  "EmrManagedSlaveSecurityGroup": "sg-0a459c77",
-#  "EmrManagedMasterSecurityGroup": "sg-08459c75"
 aws emr create-cluster \
 --auto-terminate \
 --auto-scaling-role EMR_AutoScaling_DefaultRole \
@@ -61,7 +57,7 @@ aws emr create-cluster \
       "2",
       "--class",
       "dpla.ingestion3.entries.ingest.IngestRemap",
-      "s3://dpla-ingestion3/ingestion3-assembly-0.1.0.jar",
+      "'"s3://dpla-ingestion3/$i3_jar"'",
       "'"--output $output"'",
       "'"--name $name"'",
       "'"--input $harvest_input"'"
