@@ -78,7 +78,7 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     val dplaMap = new DplaMap()
 
     // Load the harvested record dataframe, repartition data
-    val harvestedRecords: DataFrame = spark.read.avro(dataIn).repartition(1000)
+    val harvestedRecords: DataFrame = spark.read.avro(dataIn).sample(.1, 256).repartition(1000)
 
     // Get distinct harvest records
     // val distinctHarvest: DataFrame = harvestedRecords.distinct
