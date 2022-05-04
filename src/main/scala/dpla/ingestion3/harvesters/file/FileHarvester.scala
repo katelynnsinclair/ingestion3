@@ -1,9 +1,9 @@
 package dpla.ingestion3.harvesters.file
 
 import java.io.BufferedReader
-
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.harvesters.{Harvester, LocalHarvester}
+import org.apache.avro.SchemaBuilder
 import org.apache.avro.generic.GenericData
 import org.apache.log4j.Logger
 import org.apache.spark.sql.SparkSession
@@ -62,11 +62,18 @@ abstract class FileHarvester(spark: SparkSession,
   def writeOut(unixEpoch: Long, item: ParsedResult): Unit = {
     val avroWriter = getAvroWriter
     val genericRecord = new GenericData.Record(Harvester.schema)
+
+    // https://stackoverflow.com/questions/61380870/avro-enum-serialization-in-java
+    import org.apache.avro.generic.GenericData
+
+
+    val mimeTypeSymbol = new GenericData.EnumSymbol(enumSchema, mimeType)
+
     genericRecord.put("id", item.id)
     genericRecord.put("ingestDate", unixEpoch)
     genericRecord.put("provider", shortName)
     genericRecord.put("document", item.item)
-    genericRecord.put("mimetype", mimeType)
+    genericRecord.put("mimetype", mimeTypeSymbol)
     avroWriter.append(genericRecord)
   }
 

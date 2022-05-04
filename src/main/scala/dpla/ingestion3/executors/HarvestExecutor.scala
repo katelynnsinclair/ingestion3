@@ -85,8 +85,8 @@ trait HarvestExecutor {
       // Write harvested data to output file.
       harvestData
         .write
+        // .option("avroSchema", harvestData.schema.toString)
         .format("avro")
-        .option("avroSchema", harvestData.schema.toString)
         .save(outputPath)
 
       setSummary match {

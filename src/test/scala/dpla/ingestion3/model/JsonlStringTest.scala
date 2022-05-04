@@ -53,7 +53,7 @@ class JsonlStringTest extends FlatSpec {
   }
 
 // FIXME HOW DOES THIS TEST WORK?
-  
+
 //  it should "for fields that have no data" in {
 //    // Those fields that are optional are 0-n, so they will be arrays.
 //    val s: String = jsonlRecord(EnrichedRecordFixture.minimalEnrichedRecord)

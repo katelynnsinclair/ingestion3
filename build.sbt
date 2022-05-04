@@ -9,7 +9,7 @@ parallelExecution in Test := false
 // https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-release-app-versions-6.x.html
 val HADOOP_VERSION = "3.2.1" // For emr-6.5.0
 val AWS_SDK_VERSION = "1.12.31" // For emr-6.5.0
-val SPARK_VERSION = "3.1.2" // // For emr-6.5.0
+val SPARK_VERSION = "3.2.1" // // For emr-6.5.0  || 3.2.1 == jackson 2.12, 3.1.2 jackson 2.10
 
 assembly / assemblyMergeStrategy := {
   case "META-INF/MANIFEST.MF" => MergeStrategy.discard
@@ -23,16 +23,18 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-mllib" % SPARK_VERSION exclude("org.scalatest", "scalatest_2.11"),
   "org.apache.spark" %% "spark-avro" % SPARK_VERSION exclude("org.scalatest", "scalatest_2.11"),
 
-  "org.apache.ant" % "ant" % "1.10.1",
   "org.apache.hadoop" % "hadoop-aws" % HADOOP_VERSION,
-  "com.amazonaws" % "aws-java-sdk" % AWS_SDK_VERSION,
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % HADOOP_VERSION,
+
+  "com.amazonaws" % "aws-java-sdk" % AWS_SDK_VERSION,
+
+  "org.apache.ant" % "ant" % "1.10.1",
 
   // JSON parsers
   // 3.7.0-M2 pulls in the correct version of com.fasterxml.jackson
   //  > Caused by: com.fasterxml.jackson.databind.JsonMappingException: Scala module 2.10.0 requires Jackson Databind version >= 2.10.0 and < 2.11.0
   // "org.json4s" %% "json4s-core" % "3.7.0-M2", // % "provided",
-  "org.json4s" %% "json4s-native" % "3.7.0-M2" % "provided",
+  "org.json4s" %% "json4s-native" % "3.7.0-M5" % "provided",
   // "org.json4s" %% "json4s-jackson" % "3.7.0-M2", // % "provided",
 
   // Enricher dependencies
@@ -60,7 +62,7 @@ libraryDependencies ++= Seq(
 
   // Tests
   "org.scalamock" %% "scalamock" % "4.0.0", // % "test",
-  "com.holdenkarau" %% "spark-testing-base" % "3.2.0_1.1.1", // % "test",
+//  "com.holdenkarau" %% "spark-testing-base" % "3.1.2_1.1.1", // % "test",
   "org.scalatest" %% "scalatest" % "3.0.1", // % "test",
 
   // IDK what this is used for in the project

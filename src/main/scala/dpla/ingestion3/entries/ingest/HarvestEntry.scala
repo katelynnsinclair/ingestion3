@@ -38,6 +38,7 @@ object HarvestEntry extends HarvestExecutor {
       .setAppName(s"Harvest: $shortName")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .set("spark.kryoserializer.buffer.max", "200")
+      .set("spark.sql.legacy.replaceDatabricksSparkAvro.enabled", "true")
 
     val sparkConf = sparkMaster match {
       case Some(m) => baseConf.setMaster(m)

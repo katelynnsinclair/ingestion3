@@ -1,10 +1,9 @@
 package dpla.ingestion3.harvesters
 
 import java.io.File
-
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.utils.{FlatFileIO, Utils}
-import org.apache.avro.Schema
+import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.file.DataFileWriter
 import org.apache.avro.generic.GenericRecord
 import org.apache.commons.io.FileUtils
@@ -16,6 +15,13 @@ abstract class Harvester(spark: SparkSession,
                          shortName: String,
                          conf: i3Conf,
                          logger: Logger) {
+
+  // Required per some changes in spark avro writer
+  // @see https://stackoverflow.com/questions/61380870/avro-enum-serialization-in-java
+  val enumSchema = SchemaBuilder
+    .enumeration("mimetype")
+    .namespace("dpla.avro.v1")
+    .symbols("application_json", "application_xml", "text_turtle")
 
   def harvest: DataFrame = {
     val harvestData: DataFrame = localHarvest()

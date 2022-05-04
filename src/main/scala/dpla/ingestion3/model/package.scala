@@ -6,12 +6,11 @@ import dpla.ingestion3.utils.FlatFileIO
 import org.apache.avro.Schema
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.avro.SchemaConverters
-
 import org.json4s._
 import org.json4s.JsonDSL._
-import org.json4s.native.JsonMethods._
+import org.json4s.jackson.JsonMethods
 import org.json4s.prefs.EmptyValueStrategy
-import org.json4s.JsonAST.{JValue,JObject,JString,JField}
+import org.json4s.JsonAST.{JField, JObject, JString, JValue}
 
 package object model {
 
@@ -216,7 +215,7 @@ package object model {
         ("tags" -> record.tags.map {_.toString})
       )
 
-    compact(render(jobj))
+    JsonMethods.compact(JsonMethods.render(jobj))
   }
 
   /**
@@ -346,7 +345,7 @@ package object model {
   val avroSchema: Schema = new Schema.Parser().parse(new FlatFileIO().readFileAsString("/avro/MAPRecord.avsc"))
   val sparkSchema: StructType = SchemaConverters.toSqlType(avroSchema).dataType.asInstanceOf[StructType]
 
-  def toJsonString(json: JValue): String = compact(render(json)(formats))
-  def fromJsonString(jsonString: String): JValue = parse(jsonString)
+  def toJsonString(json: JValue): String = JsonMethods.compact(JsonMethods.render(json))
+  def fromJsonString(jsonString: String): JValue = JsonMethods.parse(jsonString)
 
 }
