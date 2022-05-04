@@ -5,7 +5,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.col
-import com.databricks.spark.avro._
+
 import dpla.ingestion3.harvesters.file.XmlFileFilter
 
 import scala.xml.XML
@@ -101,8 +101,8 @@ object NaraMergeUtil {
     import spark.implicits._
 
     // Read most recent harvest data file
-    val baseHarvestDf: DataFrame = spark.read.avro(basePath)
-    val deltaHarvestDf: DataFrame = spark.read.avro(deltaPath)
+    val baseHarvestDf: DataFrame = spark.read.format("avro").load(basePath)
+    val deltaHarvestDf: DataFrame = spark.read.format("avro").load(deltaPath)
 
     // Counts for logging
     val baseCount = baseHarvestDf.count()
@@ -199,10 +199,12 @@ object NaraMergeUtil {
 
     // Write merged data
     new File(outputPath).mkdirs()
+
     mergedDf
       .write
       .mode(SaveMode.Overwrite)
-      .avro(outputPath)
+      .format("avro")
+      .save(outputPath)
 
     // print summary log
     println(summary)

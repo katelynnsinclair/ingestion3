@@ -5,7 +5,7 @@ import java.io.File
 import dpla.ingestion3.utils.Utils
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import com.databricks.spark.avro._
+
 
 import scala.util.Try
 
@@ -31,7 +31,7 @@ class PreMappingReporter(val inputDir: String,
   }
 
   private val report = {
-    val input: DataFrame = spark.read.avro(inputDir)
+    val input: DataFrame = spark.read.format("avro").load(inputDir)
     new PreMappingReport(input, inputDataType, spark)
   }
 

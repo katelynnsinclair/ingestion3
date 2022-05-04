@@ -2,7 +2,6 @@ package dpla.ingestion3.executors
 
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
 import dpla.ingestion3.model.{ModelConverter, jsonlRecord}
 import dpla.ingestion3.dataStorage.OutputHelper
 import org.apache.log4j.Logger
@@ -46,7 +45,7 @@ trait JsonlExecutor extends Serializable {
     import spark.implicits._
     val sc = spark.sparkContext
 
-    val enrichedRows: DataFrame = spark.read.avro(dataIn)
+    val enrichedRows: DataFrame = spark.read.format("avro").load(dataIn)
 
     val indexRecords: Dataset[String] = enrichedRows.map(
       row => {

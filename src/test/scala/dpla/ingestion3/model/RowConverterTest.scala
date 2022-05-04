@@ -1,6 +1,6 @@
 package dpla.ingestion3.model
 
-import com.databricks.spark.avro.SchemaConverters
+import org.apache.spark.sql.avro.SchemaConverters
 import dpla.ingestion3.data.EnrichedRecordFixture
 import dpla.ingestion3.utils.FlatFileIO
 import org.apache.avro.Schema

@@ -7,7 +7,7 @@ import dpla.ingestion3.confs.i3Conf
 import org.apache.commons.io.IOUtils
 import org.apache.log4j.Logger
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import com.databricks.spark.avro._
+
 import dpla.ingestion3.mappers.utils.XmlExtractor
 import org.apache.tools.tar.TarInputStream
 
@@ -131,7 +131,7 @@ class HathiFileHarvester(spark: SparkSession,
     flush()
 
     // Read harvested data into Spark DataFrame and return.
-    spark.read.avro(tmpOutStr)
+    spark.read.format("avro").load(tmpOutStr)
   }
 
   /**

@@ -2,7 +2,7 @@ package dpla.ingestion3.entries.reports
 
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
+
 import dpla.ingestion3.utils.Utils
 import dpla.ingestion3.dataStorage.OutputHelper
 import dpla.ingestion3.model.{ModelConverter, OreAggregation}
@@ -90,7 +90,7 @@ object ReporterMain {
     val sc = spark.sparkContext
 
     // Read data in
-    val inputDF: DataFrame = spark.read.avro(inputURI)
+    val inputDF: DataFrame = spark.read.format("avro").load(inputURI)
 
     val mappedData: Dataset[OreAggregation] = dplaMapData(inputDF)
 
@@ -130,7 +130,7 @@ object ReporterMain {
     val sc = spark.sparkContext
 
     // Read data in
-    val inputDF: DataFrame = spark.read.avro(input)
+    val inputDF: DataFrame = spark.read.format("avro").load(input)
 
     val mappedData: Dataset[OreAggregation] =
       dplaMapData(inputDF).persist(StorageLevel.MEMORY_AND_DISK_SER)

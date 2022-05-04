@@ -2,7 +2,6 @@ package dpla.ingestion3.executors
 
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
 import dpla.ingestion3.dataStorage.OutputHelper
 import dpla.ingestion3.model
 import dpla.ingestion3.model._
@@ -56,7 +55,7 @@ trait WikimediaMetadataExecutor extends Serializable with WikiMapper {
     val tupleRowBooleanEncoder: ExpressionEncoder[(Row, Boolean)] =
       ExpressionEncoder.tuple(RowEncoder(model.sparkSchema), ExpressionEncoder())
 
-    val enrichedRows: DataFrame = spark.read.avro(dataIn)
+    val enrichedRows: DataFrame = spark.read.format("avro").load(dataIn)
 
     val enrichResults: Dataset[(Row, Boolean)] = enrichedRows.map(row => {
       Try{ ModelConverter.toModel(row) } match {

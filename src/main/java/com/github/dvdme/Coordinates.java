@@ -117,7 +117,7 @@ public class Coordinates {
 	
 	@Override
 	public String toString(){
-		return String.valueOf(latitude) + "," + String.valueOf(longitude);
+		return latitude + "," + longitude;
 	} 
 
 	private double parseCoordinate(String c){

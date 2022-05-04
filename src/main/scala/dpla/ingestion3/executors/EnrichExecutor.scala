@@ -3,8 +3,6 @@ package dpla.ingestion3.executors
 import java.io.File
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
-import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.enrichments.EnrichmentDriver
 import dpla.ingestion3.messages._
 import dpla.ingestion3.model
@@ -70,7 +68,7 @@ trait EnrichExecutor extends Serializable {
       ExpressionEncoder.tuple(RowEncoder(model.sparkSchema), ExpressionEncoder())
 
     // Load the mapped records
-    val mappedRows: DataFrame = spark.read.avro(dataIn)
+    val mappedRows: DataFrame = spark.read.format("avro").load(dataIn)
 
     // Wrapping an instance of EnrichmentDriver in an object allows it to be
     // used in distributed operations. Without the object wrapper, it throws

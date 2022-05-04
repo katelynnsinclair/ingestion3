@@ -13,7 +13,7 @@ import org.json4s.jackson.JsonMethods._
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}
 import scala.xml.XML
-import com.databricks.spark.avro._
+
 
 /**
   * Class for harvesting records from the Library of Congress's API
@@ -92,7 +92,7 @@ class LocHarvester(spark: SparkSession,
     saveOutAll(locFetched)
 
     // Read harvested data into Spark DataFrame and return.
-    spark.read.avro(tmpOutStr)
+    spark.read.format("avro").load(tmpOutStr)
   }
 
   /**

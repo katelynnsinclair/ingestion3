@@ -59,10 +59,7 @@ public class CoordinatesCalculations {
     public static boolean isInCircleArea(Coordinates coordinate, Coordinates center, int radius) {
 
         boolean res = isInSquareArea(coordinate, center, radius);
-        if (getDistanceBetweenTwoPoints(coordinate, center) <= radius)
-            res = true;
-        else
-            res = false;
+        res = getDistanceBetweenTwoPoints(coordinate, center) <= radius;
 
         return res;
 

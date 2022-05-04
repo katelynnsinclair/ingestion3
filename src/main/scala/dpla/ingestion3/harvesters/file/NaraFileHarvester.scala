@@ -3,7 +3,7 @@ package dpla.ingestion3.harvesters.file
 import java.io.{BufferedReader, File, FileInputStream}
 import java.util.zip.GZIPInputStream
 
-import com.databricks.spark.avro._
+
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.harvesters.{AvroHelper, Harvester}
 import dpla.ingestion3.utils.{FlatFileIO, Utils}
@@ -224,7 +224,7 @@ class NaraFileHarvester(
       .getAbsolutePath
 
     val localSrcPath = new Path(naraTempFile)
-    val dfAllRecords = spark.read.avro(localSrcPath.toString)
+    val dfAllRecords = spark.read.format("avro").load(localSrcPath.toString)
 
     import spark.implicits._
     val w = Window.partitionBy($"id").orderBy($"filename".desc)

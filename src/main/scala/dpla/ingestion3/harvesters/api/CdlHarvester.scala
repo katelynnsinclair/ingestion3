@@ -10,7 +10,7 @@ import org.apache.log4j.Logger
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods._
-import com.databricks.spark.avro._
+
 
 import scala.util.{Failure, Success}
 
@@ -85,7 +85,7 @@ class CdlHarvester(spark: SparkSession,
         }
     }
     // Read harvested data into Spark DataFrame and return.
-    spark.read.avro(tmpOutStr)
+    spark.read.format("avro").load(tmpOutStr)
   }
 
   /**

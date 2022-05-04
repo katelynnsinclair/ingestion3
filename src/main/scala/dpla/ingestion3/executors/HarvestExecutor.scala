@@ -2,7 +2,6 @@ package dpla.ingestion3.executors
 
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.dataStorage.OutputHelper
 import dpla.ingestion3.harvesters.Harvester
@@ -86,9 +85,9 @@ trait HarvestExecutor {
       // Write harvested data to output file.
       harvestData
         .write
-        .format("com.databricks.spark.avro")
+        .format("avro")
         .option("avroSchema", harvestData.schema.toString)
-        .avro(outputPath)
+        .save(outputPath)
 
       setSummary match {
         case Some(s) => outputHelper.writeSetSummary(s) match {
@@ -99,7 +98,7 @@ trait HarvestExecutor {
       }
 
       // Reads the saved avro file back
-      spark.read.avro(outputPath)
+      spark.read.format("avro").load(outputPath)
     } match {
       case Success(df) =>
         Harvester.validateSchema(df)

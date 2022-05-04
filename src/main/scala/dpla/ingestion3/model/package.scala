@@ -2,21 +2,20 @@ package dpla.ingestion3
 
 import java.text.SimpleDateFormat
 import java.util.{Calendar, TimeZone}
-import com.databricks.spark.avro.SchemaConverters
 import dpla.ingestion3.utils.FlatFileIO
 import org.apache.avro.Schema
 import org.apache.spark.sql.types.StructType
-import org.json4s
-import org.json4s.JsonAST._
+import org.apache.spark.sql.avro.SchemaConverters
+
+import org.json4s._
 import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods
-import org.json4s.jackson.JsonMethods._
+import org.json4s.native.JsonMethods._
 import org.json4s.prefs.EmptyValueStrategy
-import org.json4s.{DefaultFormats, Formats}
+import org.json4s.JsonAST.{JValue,JObject,JString,JField}
 
 package object model {
 
-  val DcmiTypes = Set(
+  val DcmiTypes: Set[String] = Set(
       "collection",
       "dataset",
       "event",
@@ -217,7 +216,7 @@ package object model {
         ("tags" -> record.tags.map {_.toString})
       )
 
-    compact(render(jobj)(formats))
+    compact(render(jobj))
   }
 
   /**
@@ -338,7 +337,7 @@ package object model {
         if(items.isEmpty) JNothing
         else JArray(items.map(replaceEmpty))
       case JObject(fields) => JObject(fields map {
-        case JField(name, v) => JField(name, value = replaceEmpty(v))
+        case JField(name: String, v: JValue) => JField(name, value = replaceEmpty(v))
       })
       case oth => oth
     }
@@ -347,7 +346,7 @@ package object model {
   val avroSchema: Schema = new Schema.Parser().parse(new FlatFileIO().readFileAsString("/avro/MAPRecord.avsc"))
   val sparkSchema: StructType = SchemaConverters.toSqlType(avroSchema).dataType.asInstanceOf[StructType]
 
-  def toJsonString(json: JValue): String = JsonMethods.compact(JsonMethods.render(json))
-  def fromJsonString(jsonString: String): json4s.JValue = JsonMethods.parse(jsonString)
+  def toJsonString(json: JValue): String = compact(render(json)(formats))
+  def fromJsonString(jsonString: String): JValue = parse(jsonString)
 
 }

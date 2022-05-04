@@ -2,7 +2,6 @@ package dpla.ingestion3.executors
 
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
 import dpla.ingestion3.dataStorage.OutputHelper
 import dpla.ingestion3.machineLearning.{BagOfWordsTokenizer, Lemmatizer, TopicDistributor}
 import dpla.ingestion3.messages._
@@ -129,7 +128,7 @@ trait TopicModelExecutor extends Serializable with IngestMessageTemplates {
 
     val dataCols: Seq[Column] = dataFields.map(x => col(x))
 
-    val records: DataFrame = spark.read.avro(dataIn)
+    val records: DataFrame = spark.read.format("avro").load(dataIn)
 
     // The column names must be "dplaUri" and "text"
     records.select(

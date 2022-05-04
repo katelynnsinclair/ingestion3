@@ -2,7 +2,7 @@ package dpla.ingestion3.harvesters.api
 
 import java.net.URL
 
-import com.databricks.spark.avro._
+
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.utils.HttpUtils
 import org.apache.http.client.utils.URIBuilder
@@ -100,7 +100,7 @@ class IaHarvester (spark: SparkSession,
       }
     })
 
-    spark.read.avro(tmpOutStr)
+    spark.read.format("avro").load(tmpOutStr)
   }
 
   /**

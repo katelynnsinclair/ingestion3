@@ -2,7 +2,6 @@ package dpla.ingestion3.executors
 
 import java.time.LocalDateTime
 
-import com.databricks.spark.avro._
 import dpla.eleanor.Schemata.Ebook
 import dpla.eleanor.profiles.{EbookProfile, Profile}
 import dpla.ingestion3.dataStorage.OutputHelper
@@ -78,7 +77,7 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     val dplaMap = new DplaMap()
 
     // Load the harvested record dataframe, repartition data
-    val harvestedRecords: DataFrame = spark.read.avro(dataIn).repartition(1000)
+    val harvestedRecords: DataFrame = spark.read.format("avro").load(dataIn).repartition(1000)
 
     // Get distinct harvest records
     // val distinctHarvest: DataFrame = harvestedRecords.distinct
@@ -145,10 +144,10 @@ trait MappingExecutor extends Serializable with IngestMessageTemplates {
     // Results must be written before _LOGS.
     // Otherwise, spark interpret the `successResults' `outputPath' as
     // already existing, and will fail to write.
-    encodedMappingResults.write.avro(outputPath)
+    encodedMappingResults.write.format("avro").save(outputPath)
 
     // Get counts
-    val validRecordCount = spark.read.avro(outputPath).count // requires read-after-write consistency
+    val validRecordCount = spark.read.format("avro").load(outputPath).count // requires read-after-write consistency
     val attemptedCount = 0
 
     // Write manifest

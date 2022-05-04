@@ -3,7 +3,7 @@ package dpla.ingestion3.harvesters.file
 import java.io.{File, FileFilter, FileInputStream, InputStreamReader}
 import java.util.zip.GZIPInputStream
 
-import com.databricks.spark.avro._
+
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.utils.Utils
 import org.apache.commons.io.IOUtils
@@ -182,7 +182,7 @@ class SiFileHarvester(spark: SparkSession,
     flush()
 
     // Read harvested data into Spark DataFrame and return.
-    spark.read.avro(tmpOutStr)
+    spark.read.format("avro").load(tmpOutStr)
   }
 
   /**

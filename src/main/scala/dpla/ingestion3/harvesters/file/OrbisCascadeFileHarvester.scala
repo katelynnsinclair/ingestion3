@@ -3,7 +3,6 @@ package dpla.ingestion3.harvesters.file
 import java.io.{File, FileInputStream}
 import java.util.zip.ZipInputStream
 
-import com.databricks.spark.avro._
 import dpla.ingestion3.confs.i3Conf
 import dpla.ingestion3.mappers.utils.XmlExtractor
 import org.apache.commons.io.IOUtils
@@ -149,7 +148,7 @@ class OrbisCascadeFileHarvester(spark: SparkSession,
 
     // Read harvested data into Spark DataFrame and return.
     super.flush()
-    spark.read.avro(tmpOutStr)
+    spark.read.format("avro").load(tmpOutStr)
   }
 
   /**
