@@ -9,7 +9,13 @@ parallelExecution in Test := false
 // https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-release-app-versions-6.x.html
 val HADOOP_VERSION = "3.2.1" // For emr-6.5.0
 val AWS_SDK_VERSION = "1.12.31" // For emr-6.5.0
-val SPARK_VERSION = "3.2.1" // // For emr-6.5.0  || 3.2.1 == jackson 2.12, 3.1.2 jackson 2.10
+
+// TODO ...
+// Spark 3.2.1 uses jackson 2.12
+// Spark 3.1.2 uses jackson 2.10 but this gets evicted by jackson 2.12 that comes from ... somewhere ...
+// Spark 3.1.2 is needed for AWS EMR 6.5.0
+// TODO figure out where jackson 2.12 is coming from so Spark 3.1.2 can be used on EMR
+val SPARK_VERSION = "3.2.1" // // For emr-6.5.0
 
 assembly / assemblyMergeStrategy := {
   case "META-INF/MANIFEST.MF" => MergeStrategy.discard
@@ -61,9 +67,9 @@ libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.1",
 
   // Tests
-  "org.scalamock" %% "scalamock" % "4.0.0", // % "test",
-//  "com.holdenkarau" %% "spark-testing-base" % "3.1.2_1.1.1", // % "test",
-  "org.scalatest" %% "scalatest" % "3.0.1", // % "test",
+  "org.scalamock" %% "scalamock" % "4.0.0",
+  // "com.holdenkarau" %% "spark-testing-base" % "3.1.2_1.1.1", % "test", Is this still needed? 
+  "org.scalatest" %% "scalatest" % "3.0.1",
 
   // IDK what this is used for in the project
   "com.opencsv" % "opencsv" % "3.10",
@@ -73,8 +79,6 @@ libraryDependencies ++= Seq(
   "edu.stanford.nlp" % "stanford-corenlp" % "3.9.1" classifier "models",
 
   // ElasticSearch
-  // For Elasticsearch, see https://www.elastic.co/guide/en/elasticsearch/hadoop/current/install.html
-  // "org.elasticsearch" % "elasticsearch-spark-20_2.11" % "5.3.2", // Spark 2.0+, Scala 2.11+ | ingestion3
   "org.elasticsearch" %% "elasticsearch-spark-20" % "7.17.3" // eleanor
 )
 
